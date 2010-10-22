@@ -1,0 +1,24 @@
+#wpcontent select[multiple]
+{
+	height: 8em;
+}
+
+.title_LABEL {
+	font-weight: bold;
+}
+
+.cite_LABEL {
+	font-weight: bold;
+}
+
+.year_LABEL {
+	font-weight: bold;
+}
+
+.bibfield input {
+	width: 100%;
+}
+
+.bibfield form textarea {
+	width: 600px;
+}

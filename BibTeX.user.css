@@ -1,0 +1,10 @@
+div.bibtex {
+	display: block;
+}
+
+.abstract {
+	background: #ddd;
+	margin: 2px;
+	padding: 5px;
+	font-size: 0.85em;
+}
