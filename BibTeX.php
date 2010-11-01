@@ -73,7 +73,7 @@ class BibTeX_Plugin
 	function BibTeX_filter_content($text)
 	{
 		/* works with a single keyword */
-		return preg_replace_callback ("/\[bibtex\s+((allow|category|deny|cite|keyword|year)\s*=\s*([^\]]+))]/U",array (&$this, 'tag_pattern_management'), $text);
+		return preg_replace_callback ("/\[bibtex\s+((allow|category|deny|cite|keyword|author|year)\s*=\s*([^\]]+))]/U",array (&$this, 'tag_pattern_management'), $text);
 	}
 	
 	/**
@@ -182,6 +182,22 @@ class BibTeX_Plugin
 				} else {
 					return "No publications with keyword '" . $bibItems[3] . "'<br/>";				
 				}		
+		}  else if($bibItems[2]=='author') /* select by author's lastname */
+			{
+				$pids= $this->getPublicationsByAuthorName($bibItems[3]); /* author's lastname */
+				if(!empty($pids)){
+					/* potentially more than one ... */
+					$num = count($pids);
+					$fulllist = "<ul>";
+					for($i=0; $i < $num; $i++){
+						$pid = $pids[$i]->pubid;
+						$fulllist .= "<li>" . $this->get_full_publication_info($pid) . "</li>\n";
+					}
+					$fulllist .= "</ul>";				
+					return $fulllist;
+				} else {
+					return "No publications by author '" . $bibItems[3] . "'<br/>";				
+				}		
 		} else
 			/* returns un managed pattern */
 			return $bibItems[0];
@@ -223,6 +239,7 @@ class BibTeX_Plugin
 		return $bibdata;
 	}
 	
+
 	/**
 	 * retrieves the information on a publication authors, organized in an array
 	 * @param object $bibID: the id of a publication
@@ -236,13 +253,14 @@ class BibTeX_Plugin
 		$allfields = $this->database_interface->getTableFields(array($this->database_interface->get_tablename('main'),$this->database_interface->get_tablename('auth')));
 		$authfields =array_keys($allfields[$this->database_interface->get_tablename('auth')]);
 		/* records */
-		$query = $wpdb->prepare("SELECT * FROM ".$this->database_interface->get_tablename('auth')." WHERE id=(%d) order by num;",$bibID);
+		$query = $wpdb->prepare("SELECT * FROM ".$this->database_interface->get_tablename('auth')." AS A INNER JOIN ".$this->database_interface->get_tablename('pubauth')." AS PA ON A.Authid = PA.authid WHERE pubid=%d order by num;",$bibID);
 		$authrowsobj = $wpdb->get_results($query);
 		for($i=0;$i<count($authrowsobj);$i++){
 			$authrows[$i]=$this->array_combine_emulated($authfields,$authrowsobj[$i]);
 		}
 		return $authrows;
 	}
+
 	
 	/**
 	 * retrieves the bibtex code of a publication
@@ -254,7 +272,7 @@ class BibTeX_Plugin
 		/* the db */
 		global $wpdb;
 		/* record */
-		$query = $wpdb->prepare("SELECT * FROM ".$this->database_interface->get_tablename('content')." WHERE id=(%d);",$bibID);
+		$query = $wpdb->prepare("SELECT * FROM ".$this->database_interface->get_tablename('content')." WHERE id=%d;",$bibID);
 		$bibstring = $wpdb->get_results($query);
 		return $bibstring[0]->content;
 	}	
@@ -346,8 +364,8 @@ class BibTeX_Plugin
 		}				
 		/* doi */
 		$doi = "";
-		if($this->keyExistsOrIsNotEmpty('url',$details)){
-			$doi = $this->toURL(wp_specialchars($details['url']));
+		if($this->keyExistsOrIsNotEmpty('doi',$details)){
+			$doi = $this->toURL(wp_specialchars($details['doi']));
 		}		
 		/* bibtex code -- if available */
 		if($code != ''){ /* onclick="Effect.toggle(\''. $bibcite . "','appear'); return false\" */
@@ -444,6 +462,7 @@ class BibTeX_Plugin
        		add_submenu_page('BibTeX-plugin', __("View References", 'BibTeX-plugin'), __("View References", 'BibTeX-plugin'), $allowed_group, 'BibTeX-plugin', array( &$this, 'view_references'));
        		add_submenu_page('BibTeX-plugin', __("Input References", 'BibTeX-plugin'), __("Input References", 'BibTeX-plugin'), $allowed_group, 'BibTeX-input-references', array( &$this, 'input_references'));
        		add_submenu_page('BibTeX-plugin', __("View Categories", 'BibTeX-plugin'), __("View Categories", 'BibTeX-plugin'), $allowed_group, 'BibTeX-view-categories', array( &$this, 'view_categories'));
+       		add_submenu_page('BibTeX-plugin', __("View Authors", 'BibTeX-plugin'), __("View Authors", 'BibTeX-plugin'), $allowed_group, 'BibTeX-view-authors', array( &$this, 'view_authors'));
        		add_submenu_page('BibTeX-plugin', __("Configuration", 'BibTeX-plugin'), __("Configuration", 'BibTeX-plugin'), 'manage_options', 'BibTeX-configuration', array( &$this, 'configuration'));
        		//add_action( "admin_head", 'calendar_add_javascript' );
      	}
@@ -453,7 +472,7 @@ class BibTeX_Plugin
     {
     	$task = isset ($_POST['task']) ? $_POST['task'] : '';
     	$task = empty($task) ? (isset ($_GET['task']) ? $_GET['task'] : '') : $task;
-    	switch($task)
+   		switch($task)
     	{
 			case "remove":
 				$this->delBib();$this->viewBib();
@@ -466,6 +485,10 @@ class BibTeX_Plugin
 				break;
 			case "saveEdit":
 				$this->saveEditBib();$this->viewBib();
+				break;
+			/* CB */
+			case "deleteAuthorPublication":
+				$this->delAuthorPub();$this->editBib();
 				break;
 			case 'cancel':
 				$this->checkin();$this->viewBib();
@@ -482,17 +505,43 @@ class BibTeX_Plugin
     	global $wpdb;
     	foreach($id as $bid)
     	{
-			$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('main')." where pubid=(%d)", $bid);
-			$wpdb->query($query);
-			$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('auth')." where id=(%d)", $bid);
+			$query = $wpdb->prepare("DELETE from ".$this->database_interface->get_tablename('main')." where pubid=%d", $bid);
 			$wpdb->query($query);
 			$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('content')." where id=(%d)", $bid);
 			$wpdb->query($query);
 			$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('categories')." where id=(%d)", $bid);
 			$wpdb->query($query);
+			
+			/* DELETE publication authors reference*/
+			$query = $wpdb->prepare("DELETE from ".$this->database_interface->get_tablename('pubauth')." where pubid=%d", $bid);
+			$wpdb->query($query);
+			/* delete all authors without publications */
+			$this->deleteAuthorsNoPub();			
 		}
     }
+
+    function delAuthorPub()
+    {
+ 		$pubid = $_GET['id'];
+		$authid = $_GET['authid'];
+		$this->deletePublicationAuthor($authid,$pubid);
+    }
     
+	/**
+	 * Deletes all authors without a publication 
+	 */
+	function deleteAuthorsNoPub()
+	{
+
+    	global $wpdb;
+		$query = $wpdb->prepare("SELECT DISTINCT A.authid from ".$this->database_interface->get_tablename('auth')."  A LEFT JOIN ".$this->database_interface->get_tablename('pubauth')." PA ON A.authid = PA.authid WHERE PA.pubid IS NULL;");
+		$authordata = $wpdb->get_results($query);
+		foreach($authordata as $auth){
+			$query = $wpdb->prepare("DELETE from ".$this->database_interface->get_tablename('auth')." WHERE authid=".$auth->authid.";");
+			$wpdb->query($query);
+		}		
+	}
+
     function delAllBib()
     {
     	global $wpdb;
@@ -528,10 +577,10 @@ class BibTeX_Plugin
 		{
 			//check out
 			$row['checkedout']= $user->ID;
-			$query = $wpdb->prepare("update ".$this->database_interface->get_tablename('main')." set checkedout=%d where pubid=(%d)", $user->ID, $id);
+			$query = $wpdb->prepare("update ".$this->database_interface->get_tablename('main')." set checkedout=%d where pubid=%d", $user->ID, $id);
 			$wpdb->query($query);
 
-			$query = $wpdb->prepare("SELECT * from ".$this->database_interface->get_tablename('auth')." where id=(%d) order by num", $id);
+			$query = $wpdb->prepare("SELECT * from ".$this->database_interface->get_tablename('auth')." A INNER JOIN " .$this->database_interface->get_tablename('pubauth'). " PA ON A.authid = PA.authid where PA.pubid=%d order by num", $id);
 			$authrowsobj=$wpdb->get_results($query);
 	
 			for($i=0;$i<count($authrowsobj);$i++)
@@ -763,7 +812,7 @@ class BibTeX_Plugin
 		{
 			$sets[$config->variable]=$config->value;
 		}
-		$query = $wpdb->prepare("SELECT pubid,shortauthnames,authorsnames,title,year,URL,eprint,checkedout from ".$this->database_interface->get_tablename('main'));
+		$query = $wpdb->prepare("SELECT pubid,shortauthnames,authorsnames,title,year,doi,eprint,checkedout from ".$this->database_interface->get_tablename('main'));
 		$rows = $wpdb->get_results($query);
 
 		$query = $wpdb->prepare("SELECT * from ".$this->database_interface->get_tablename('main_categories')." order by id;");
@@ -952,7 +1001,7 @@ class BibTeX_Plugin
 			}
 
 			//search for urls elsewhere
-			if(!array_key_exists('url',$paper))
+			if(!array_key_exists('doi',$paper))
 			{
 				$urlstring1=array();
 				foreach($unsavedfields as $field)
@@ -992,13 +1041,13 @@ class BibTeX_Plugin
 			}
 			
 			//sort out eprint
-			if((!array_key_exists('eprint',$paper))&&array_key_exists('url',$paper))
+			if((!array_key_exists('eprint',$paper))&&array_key_exists('doi',$paper))
 			{
-				$urlstring=$paper['url'];
+				$urlstring=$paper['doi'];
 				if(substr($urlstring, -3, 3)=="pdf"||substr($urlstring, -3, 3)=="PDF")
 				{
 					$paper['eprint']=$urlstring;
-					unset($paper['url']); 
+					unset($paper['doi']); 
 				}
 			}
 			//prepare statement for inserting fields
@@ -1008,8 +1057,8 @@ class BibTeX_Plugin
 			$wpdb->query($query);
 			
 			//get the new pubid
-			$query = $wpdb->prepare("select pubid from ".$this->database_interface->get_tablename('main')." order by pubid desc limit 1");
-			$authid= $wpdb->get_var($query);
+			$query = $wpdb->prepare("SELECT PUBID from ".$this->database_interface->get_tablename('main')." ORDER BY pubid DESC LIMIT 1");
+			$pubID= $wpdb->get_var($query);  /* NEW PUBLICATION ID */
 	
 			// Use the 'cite' parameter to dynamically assign this entry to the appropriate 
 			// categories.
@@ -1031,10 +1080,13 @@ class BibTeX_Plugin
 			//prepare statements for inserting categoryids
 			foreach ( array_merge($catIds,$dynamicCats) as $catId )
 			{
-				$query = $wpdb->prepare("insert into ".$this->database_interface->get_tablename('categories')." (id,categories) values (%d,%d)", $authid, $catId);
+				$query = $wpdb->prepare("INSERT INTO ".$this->database_interface->get_tablename('categories')." (id,categories) values (%d,%d)", $pubID, $catId);
 				$wpdb->query($query);
 			}
 			//prepare statement for author info
+			
+			//** CB: new version, with additional author table
+			
 			if($authexists)
 			{
 				$authnames = '';
@@ -1059,6 +1111,9 @@ class BibTeX_Plugin
 						{
 							$shortauthnames =$shortauthnames.$author['first']." ";
 						}
+						/* CB: middle name */
+						if($author['middle'] != '')
+							$authnames =$authnames.$author['middle'].". "; 
 					}
 					
 					$authnames =$authnames.$author['last'];
@@ -1068,7 +1123,18 @@ class BibTeX_Plugin
 					}
 					$values2 = implode("','", array_values($author));
 					$keys2 = implode(",", array_keys($author));
-					$query = "insert into ".$this->database_interface->get_tablename('auth')." (id,num,".$keys2.") values (".$authid.",".$authorcount.",'".$values2."')";
+					
+					/* check to see if it already exists in the db, author table */
+					$autID = $this->getAuthorID($author['last'],$author['first']);
+					if($autID == 0){
+						$query = "INSERT INTO ".$this->database_interface->get_tablename('auth')." (first, middle, last) VALUES ('".$values2."')";
+						$wpdb->query($query);
+						//retrieve the new pubid
+						$query = $wpdb->prepare("SELECT authid from ".$this->database_interface->get_tablename('auth')." ORDER BY authid DESC LIMIT 1");
+						$autID= $wpdb->get_var($query);  /* NEW PUBLICATION ID */
+					}
+					/* add relation publication (pubID) - author (autID) */
+					$query = "INSERT INTO ".$this->database_interface->get_tablename('pubauth')." (pubid, authid, num) VALUES (".$pubID.",".$autID.",".$authorcount.")";
 					$wpdb->query($query);
 				}
 				if($authorcount>2)
@@ -1079,16 +1145,16 @@ class BibTeX_Plugin
 				{
 					$shortauthnames = $authnames;
 				}				
-				$query = $wpdb->prepare("update ".$this->database_interface->get_tablename('main')." set authorsnames=%s where pubid=%d", $authnames, $authid);
+				$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('main')." SET authorsnames=%s WHERE pubid=%d", $authnames, $pubID);
 				$wpdb->query($query);
 				
-				$query = $wpdb->prepare("update ".$this->database_interface->get_tablename('main')." set shortauthnames=%s where pubid=%d", $shortauthnames, $authid);
+				$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('main')." SET shortauthnames=%s WHERE pubid=%d", $shortauthnames, $pubID);
 				$wpdb->query($query);
 				
 			}
 	
 			//prepare statement for inserting bibtex
-			$query = $wpdb->prepare("insert into ".$this->database_interface->get_tablename('content')." (id,content) values (%d,%s)", $authid, $minibibtex->bibTex());
+			$query = $wpdb->prepare("INSERT INTO ".$this->database_interface->get_tablename('content')." (id,content) VALUES (%d,%s)", $pubID, $minibibtex->bibTex());
 			$wpdb->query($query);
 			
 		}
@@ -1100,18 +1166,63 @@ class BibTeX_Plugin
 	 * @param object $last Author's last name
 	 * @return the author ID if it exists in the DB, 0 if it does not exist
 	 */
-	function getAuthorID($first, $last){
+	function getAuthorID($last, $first){
     	global $wpdb;
-		$query = $wpdb->prepare("SELECT * from ".$this->database_interface->get_tablename('auth') . " WHERE Last = '" . trim($last) . "';");
+		$strSQL = "SELECT * from ".$this->database_interface->get_tablename('auth') . " WHERE UPPER(Last)='" . strtoupper(trim($last)) . "';";
+		$this->debugMessage($strSQL);
+		$query = $wpdb->prepare($strSQL);
 		$authordata = $wpdb->get_results($query);
+		if($first=='*')
+			if(count($authordata)>0)
+				return $authordata[0]->authid;
 		foreach($authordata as $auth){
 			if(trim($first) == trim($auth->first))
-				return $auth->id;
+				return $auth->authid;
 		}
 		/* author has not been found */
 		return 0;
 	}
     
+
+	function getPublicationsByAuthorName($lastname)
+	{
+   		global $wpdb;
+		$authid = $this->getAuthorID($lastname,'*');
+		return $this->getPublicationsByAuthorID($authid);
+	}
+
+	function getPublicationsByAuthorID($authid)
+	{
+    	global $wpdb;
+		$strSQL = "SELECT pubid FROM ".$this->database_interface->get_tablename('pubauth')." WHERE authid=".$authid;
+		$query = $wpdb->prepare($strSQL);
+		$pubdata = $wpdb->get_results($query);
+		return $pubdata;
+	}
+
+
+	/**
+	 * Removes an author from a publication.
+	 * @param object $authid Author's id
+	 * @param object $pubid The publication id
+	 * @return 
+	 */
+	function deletePublicationAuthor($authid,$pubid){
+    	global $wpdb;
+		$query = $wpdb->prepare("DELETE FROM ".$this->database_interface->get_tablename('pubauth') . " WHERE pubid=".$pubid." AND authid=".$authid.";");
+		$wpdb->query($query);
+		//renumbering the remaining authors
+		$query = $wpdb->prepare("SELECT * FROM ".$this->database_interface->get_tablename('pubauth') . " WHERE pubid=".$pubid." ORDER BY num;");	
+		$authordata = $wpdb->get_results($query);
+		$i=1;
+		foreach($authordata as $auth){
+			$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('pubauth') . " SET num=".$i." WHERE pubid=".$pubid." AND authid=".$auth->authid.";");
+			$wpdb->query($query);
+			$i++;
+		}
+		return;
+	}
+	
 	
 	function saveBib2DB($bibarray,$fields,$catIds,$sets){
 		
@@ -1120,13 +1231,13 @@ class BibTeX_Plugin
 	function bibInput()
     {
     	global $wpdb;
-		$query = $wpdb->prepare("SELECT * from ".$this->database_interface->get_tablename('config'));
+		$query = $wpdb->prepare("SELECT * FROM ".$this->database_interface->get_tablename('config'));
 		$querysets = $wpdb->get_results($query);
 		foreach($querysets as $config)
 		{
 			$sets[$config->variable]=$config->value;
 		}
-		$query = $wpdb->prepare("SELECT * from ".$this->database_interface->get_tablename('main_categories')." order by id");
+		$query = $wpdb->prepare("SELECT * FROM ".$this->database_interface->get_tablename('main_categories')." order by id");
 		$cats = $wpdb->get_results($query);
 		$inputtype = isset ($_POST['inputtype']) ? $_POST['inputtype'] : '';
 		$authornumber = isset ($_POST['authornumber']) ? $_POST['authornumber'] : '';
@@ -1142,7 +1253,83 @@ class BibTeX_Plugin
 		$this->render_admin ('bibInput', array ('sets' => $sets, 'inputtype'=> $inputtype, 'cats' => $cats, 'authornumber' => $authornumber, 'fields' => $fields, 'authfields' => $authfields));
     }
 	
+
+    function view_authors()
+    {
+    	$task = isset ($_POST['task']) ? $_POST['task'] : '';
+   		switch($task)
+    	{
+			case 'authNew':
+				$this->authNew();
+				break;
+			case 'authSave':
+				$this->authSave();$this->viewAuth();
+				break;
+			case 'authDelete':
+				$this->delAuth();$this->viewAuth();
+				break;
+			case 'authMerge':
+				$this->mergeAuth();$this->viewAuth();
+				break;
+			default:
+				$this->viewAuth();
+				break;
+		}
+    }
+
+	/* AUTHORS MANAGEMENT */
+
+    function authNew()
+    {
+    	$this->render_admin ('authNew');
+    }
+
+    function authSave()
+    {
+		$authID = $_POST['authID'];
+		$authFirst = $_POST['authFirst'];
+		$authMiddle = $_POST['authMiddle'];
+		$authLast = $_POST['authLast'];
+		global $wpdb;
+		if($authID > 0)
+			$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('auth')." SET first='".$authFirst."', middle='".$authMiddle."', last='".$authLast."' WHERE authid=".$authID.";");
+		else
+			$query = $wpdb->prepare("INSERT INTO ".$this->database_interface->get_tablename('auth')."(first, middle, last)  VALUES('".$authFirst."', '".$authMiddle."', '".$authLast."');");
+		
+		$wpdb->query($query);
+	}
+
 	
+	function viewAuth()
+	{
+		global $wpdb;
+		$query = $wpdb->prepare("SELECT * from ".$this->database_interface->get_tablename('auth')." order by Last, First");
+		$rows = $wpdb->get_results($query);
+		$this->render_admin ('authView', array ('rows' => $rows));
+	}    
+
+	function delAuth()
+	{
+		$id = isset ($_POST['post']) ? $_POST['post'] : array();
+    	global $wpdb;
+    	foreach($id as $authid)
+    	{
+		/* TO BE COMPLETED */
+		}
+	}
+
+	function mergeAuth()
+	{
+		$id = isset ($_POST['post']) ? $_POST['post'] : array();
+    	global $wpdb;
+    	foreach($id as $authid)
+    	{
+		/* TO BE COMPLETED */
+		}
+	}
+
+
+	/* CATEGORIES */
     function view_categories()
     {
     	$task = isset ($_POST['task']) ? $_POST['task'] : '';
@@ -1162,6 +1349,7 @@ class BibTeX_Plugin
 				break;
 		}
     }
+	
 	
     function catNew()
     {
@@ -1218,6 +1406,8 @@ class BibTeX_Plugin
 		$rows = $wpdb->get_results($query);
 		$this->render_admin ('catView', array ('rows' => $rows));
 	}    
+
+
     
     function configuration()
     {
@@ -1260,7 +1450,8 @@ class BibTeX_Plugin
 
 	//CB: to include scriptaculous on pages where the bib appears
     function bibtex_plugin_user_head() {
-        echo '<script src="'.$this->get_bt_pluginURL().'/js/BibTeX.js"  type="text/javascript" />'."\n";
+       echo '<script src="'.$this->get_bt_pluginURL().'/js/jquery-1.2.3.js"  type="text/javascript"></script>'."\n";
+       echo '<script src="'.$this->get_bt_pluginURL().'/js/BibTeX.js"  type="text/javascript"></script>'."\n";
        echo '<link type="text/css" rel="stylesheet" href="' . $this->get_bt_pluginURL() . '/BibTeX.user.css" />' . "\n";
        echo "<style type=\"text/css\">
  			    div.bibtex {display: none;}
@@ -1310,6 +1501,20 @@ class BibTeX_Plugin
 	function db_setup() {
 		$this->database_interface->create_tables();
 	}
+	
+	function db_remove() {
+		$this->database_interface->drop_tables();		
+	}
+	
+	function debugMessage($message){
+		echo "
+		<script type='text/javascript' >
+		alert('".$message."');
+		</script>
+		";
+		
+	}
+	
 	
 }
 

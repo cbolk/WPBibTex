@@ -34,7 +34,7 @@ allow, deny and cite, keyword and category as follows:
 This is my list of journal articles (refer to the supported reference types, below):
 [bibtex allow=article]
 
-This is my list of conference articles and technical reports:
+This is my list of conference articles:
 [bibtex allow=inproceedings]
 
 This is my list of publications that are not technical reports:
@@ -51,6 +51,9 @@ This is the list of publications that include Design Space Exploration in the ke
 
 This is the list of publications for a given year
 [bibtex year=2010]
+
+This is the list of publications of an author, specified by his/her lastname
+[bibtex author=lastname]
 
 == Supported BibTeX reference types (to be used in the pattern for retrieving publications) ==
 

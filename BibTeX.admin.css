@@ -22,3 +22,25 @@
 .bibfield form textarea {
 	width: 600px;
 }
+
+.inputbutton {
+	background: #21759B url(http://localhost/~bolk/wp-devel/wp-admin/images/button-grad.png) repeat-x scroll 0% 0%;
+	border-color: #298CBA;
+	font-weight: bold;
+	text-shadow: rgba(0, 0, 0, 0.296875);
+	color: white;
+	-webkit-box-sizing: content-box;
+	border-bottom-left-radius: 11px 11px;
+	border-bottom-right-radius: 11px 11px;
+	border-style: solid;
+	border-width: 1px;
+	border-top-left-radius: 11px 11px;
+	border-top-right-radius: 11px 11px;
+	cursor: pointer;
+	font-size: 11px !important;
+	line-height: 13px;
+	padding: 3px 8px;
+	text-decoration: none;	
+}
+
+a.inputbutton:hover {text-decoration: none; color: white;}
