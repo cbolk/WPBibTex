@@ -47,7 +47,7 @@
 
 <div class="clear"></div>
 
-<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-author' ?>" method="post" name="adminForm">
+<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-authors' ?>" method="post" name="adminForm">
 	<table  class="widefat page fixed" cellspacing="0">
 		<thead>
 			<tr>
@@ -95,7 +95,7 @@
 							<?php echo $row->last; ?>
 						</td>
 						<td  align="center" width="5%" scope="row" class="check-column" valign="middle">
-							<input type="checkbox" name="post[]" value="<?php echo $row->isInternal; ?>" <?php if($row->isInternal==1) echo "checked"; ?>/>
+							<input type="checkbox" value="<?php echo $row->isInternal; ?>" <?php if($row->isInternal==1) echo "checked"; ?>/>
 						</td>
 						<td width="40%" align="left">
 							<?php echo $row->isInternal; ?>
@@ -114,15 +114,16 @@
 ?>
 	<input type="hidden" name="task" value="authDelete" />
 	<input class="button-primary" type="submit" name="Delete" value="<?php _e ('Delete Author', 'BibTeX-plugin'); ?>"/>
+	(<strong>Note:</strong> Eliminates all publications by the author)
 </form>
 
-<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-author' ?>" method="post" name="adminForm">
+<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-authors' ?>" method="post" name="adminForm">
 	<input type="hidden" name="task" value="authNew" />
 	<input class="button-primary" type="submit" name="New" value="<?php _e ('&nbsp;&nbsp;New Author&nbsp;&nbsp;', 'BibTeX-plugin'); ?>"/>
 </form>
 
 <!--
-<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-author' ?>" method="post" name="adminForm">
+<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-authors' ?>" method="post" name="adminForm">
 	<input type="hidden" name="task" value="authMerge" />
 	<input class="button-primary" type="submit" name="New" value="<?php _e ('&nbsp;Merge Authors&nbsp;', 'BibTeX-plugin'); ?>"/>
 </form>

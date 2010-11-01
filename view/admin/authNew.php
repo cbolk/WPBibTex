@@ -6,14 +6,14 @@
 
 <div class="clear"></div>
 
-<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-author'?>" method="POST" name="adminForm">
+<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-authors'?>" method="POST" name="adminForm">
 	<table class="widefat page fixed" cellspacing="0">
 		<tr>
 			<td width="20%">
 				Firstname:
 			</td>
 			<td width="80%">
-				<input type="text" name="firstName">
+				<input type="text" name="authFirst">
 			</td>
 		</tr>
 		<tr>
@@ -21,7 +21,7 @@
 				Middlename:
 			</td>
 			<td width="80%">
-				<input type="text" name="middleName">
+				<input type="text" name="authMiddle">
 			</td>
 		</tr>
 		<tr>
@@ -29,7 +29,7 @@
 				Lastname:
 			</td>
 			<td width="80%">
-				<input type="text" name="lastName">
+				<input type="text" name="authLast">
 			</td>
 		</tr>
 		<tr>
@@ -41,6 +41,7 @@
 			</td>
 		</tr>
 	</table>
+	<input type="hidden" name="pubid" value="<?php echo $_POST['id']; ?>" />
 	<input type="hidden" name="task" value="authSave" />
 	<input class="button-primary" type="submit" name="OK" value="<?php _e ('OK', 'BibTeX-plugin'); ?>"/>
 </form>

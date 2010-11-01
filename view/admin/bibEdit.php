@@ -87,14 +87,14 @@
 										{
 											if(($authfield == "authid")){
 											  $authid = $authrows[$i][$authfield];
-											} else if(($authfield != "wpuserid")){
+											} else if(($authfield != "isInternal")){
 												echo " ".htmlentities($authrows[$i][$authfield]);
 											}
 										}
 ?>							
 							</td>
 							<td colspan="2">
-								<a class="inputbutton" href="admin.php?page=BibTeX-plugin&task=deleteAuthorPublication&id=<?php echo $id;?>&authid=<?php echo $authid;?>" Title="Delete Author">Delete</a>
+								<a class="inputbutton" href="admin.php?page=BibTeX-plugin&task=deleteAuthorPublication&id=<?php echo $id;?>&authid=<?php echo $authid;?>" Title="Remove this author from this publication">Remove Author</a>
 							</td>
 						</tr>
 <?php
@@ -158,13 +158,13 @@
 		</tr>
 	</table>
 </form>
-<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-plugin'?>" method="POST" name="adminForm2">
+<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-authors'?>" method="POST" name="adminForm2">
 	<table class="widefat page fixed" cellspacing="0">
 		<tr>
 			<td colspan="2">
 				<input class="button-primary" type="Submit" name="Add" value="<?php _e ('Add Author', 'BibTeX-plugin'); ?>"/>
 				<input type="hidden" name="id" value="<?php echo $id; ?>" />
-				<input type="hidden" name="task" value="edit" />
+				<input type="hidden" name="task" value="authNew" />
 				<input type="hidden" name="authornumber" value="<?php echo $authornumber + 1; ?>" />
 			</td>
 		</tr>

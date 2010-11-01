@@ -1166,10 +1166,10 @@ class BibTeX_Plugin
 	 * @param object $last Author's last name
 	 * @return the author ID if it exists in the DB, 0 if it does not exist
 	 */
-	function getAuthorID($last, $first){
+	function getAuthorID($last, $first)
+	{
     	global $wpdb;
 		$strSQL = "SELECT * from ".$this->database_interface->get_tablename('auth') . " WHERE UPPER(Last)='" . strtoupper(trim($last)) . "';";
-		$this->debugMessage($strSQL);
 		$query = $wpdb->prepare($strSQL);
 		$authordata = $wpdb->get_results($query);
 		if($first=='*')
@@ -1183,6 +1183,27 @@ class BibTeX_Plugin
 		return 0;
 	}
     
+	/**
+	 * Adds an author if it does not exist another one with equal last and first name
+	 * 
+	 */
+   function addAuthorIfNew($firstname, $middlename, $lastname, $isInt)
+	{
+   		global $wpdb;
+		$authID = $this->getAuthorID($lastname, $firstname);
+		/* there is not another author with same last and first name */
+		if($authID == 0){
+			$strSQL = "INSERT INTO ".$this->database_interface->get_tablename('auth') . " (first, middle, last, isInternal) ";
+			$strSQL = $strSQL." VALUES('".$firstname."', '".$middlename."', '".$lastname."',".$isInt.");";
+			$query = $wpdb->prepare($strSQL);
+			$wpdb->query($query);
+			/* retrieved the uid of the author just insterted */
+			$query = $wpdb->prepare("SELECT authid FROM ".$this->database_interface->get_tablename('auth')." ORDER BY authid DESC LIMIT 1;");
+			$authID= $wpdb->get_var($query);
+		}
+		return $authID;
+	}
+
 
 	function getPublicationsByAuthorName($lastname)
 	{
@@ -1207,7 +1228,8 @@ class BibTeX_Plugin
 	 * @param object $pubid The publication id
 	 * @return 
 	 */
-	function deletePublicationAuthor($authid,$pubid){
+	function deletePublicationAuthor($authid,$pubid)
+	{
     	global $wpdb;
 		$query = $wpdb->prepare("DELETE FROM ".$this->database_interface->get_tablename('pubauth') . " WHERE pubid=".$pubid." AND authid=".$authid.";");
 		$wpdb->query($query);
@@ -1290,13 +1312,22 @@ class BibTeX_Plugin
 		$authFirst = $_POST['authFirst'];
 		$authMiddle = $_POST['authMiddle'];
 		$authLast = $_POST['authLast'];
+		$isInt = isset ($_POST['isInternal']) ? $_POST['isInternal'] : 0;
+		$pubID = isset ($_POST['pubid']) ? $_POST['pubid'] : 0;
 		global $wpdb;
-		if($authID > 0)
+
+		if($authID > 0){ /* author update, at the moment there is no menu supporting it */
 			$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('auth')." SET first='".$authFirst."', middle='".$authMiddle."', last='".$authLast."' WHERE authid=".$authID.";");
-		else
-			$query = $wpdb->prepare("INSERT INTO ".$this->database_interface->get_tablename('auth')."(first, middle, last)  VALUES('".$authFirst."', '".$authMiddle."', '".$authLast."');");
-		
-		$wpdb->query($query);
+			$wpdb->query($query);
+		} 	else {
+			$authID = $this->addAuthorIfNew($authFirst,$authMiddle,$authLast,$isInt);
+		}
+		if($pubID > 0){
+			$query = $wpdb->prepare("SELECT count(*)+1 FROM ".$this->database_interface->get_tablename('pubauth')." WHERE pubid=".$pubID.";");
+			$authNum= $wpdb->get_var($query);
+			$query = $wpdb->prepare("INSERT INTO ".$this->database_interface->get_tablename('pubauth')." (pubid, authid, num)  VALUES(".$pubID.", ".$authID.", ".$authNum.");");
+			$wpdb->query($query);
+		}
 	}
 
 	
@@ -1314,8 +1345,25 @@ class BibTeX_Plugin
     	global $wpdb;
     	foreach($id as $authid)
     	{
-		/* TO BE COMPLETED */
+			/* deleting all the author's publications */
+			$strSQL = "SELECT pubid FROM ".$this->database_interface->get_tablename('pubauth')." WHERE authid=".$authid.";";
+			$query = $wpdb->prepare($strSQL);
+			$pubids = $wpdb->get_results($query);
+			foreach($pubids as $pid){
+				$strSQL = "DELETE FROM ".$this->database_interface->get_tablename('main')." WHERE pubid=".$pid->pubid.";";
+				$query = $wpdb->prepare($strSQL);
+				$wpdb->query($query);				
+			}
+			/* deleting the author from the publication author table */
+			$strSQL = "DELETE FROM ".$this->database_interface->get_tablename('pubauth')." WHERE authid=".$authid.";";
+			$query = $wpdb->prepare($strSQL);
+			$wpdb->query($query);
+			/* deleting the author from the table */
+			$strSQL = "DELETE FROM ".$this->database_interface->get_tablename('auth')." WHERE authid=".$authid.";";
+			$query = $wpdb->prepare($strSQL);
+			$wpdb->query($query);
 		}
+		$this->deleteAuthorsNoPub();
 	}
 
 	function mergeAuth()
