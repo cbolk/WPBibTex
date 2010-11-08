@@ -20,7 +20,7 @@ The bibtex plugin has been developed and tested under Wordpress version 2.9.1.
 
 If Lastname consists of several words, keep them together by using the ~ char (e.g., Danny De~Vito)
 If the Firstname has two separate words and both are firstname and not first and middle name, then use
-the  ~ char to keep them together as one (e.g. Li~Cheng Wong).
+the ~ char to keep them together as one (e.g. Li~Cheng Wong).
 
 
 == A brief Markdown Example ==
@@ -51,6 +51,9 @@ This is the list of publications that include Design Space Exploration in the ke
 
 This is the list of publications for a given year
 [bibtex year=2010]
+
+This is the list of publications of 
+[bibtex author=xxxxx]
 
 == Supported BibTeX reference types (to be used in the pattern for retrieving publications) ==
 

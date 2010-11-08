@@ -5,7 +5,10 @@
 </div>
 
 <div class="clear"></div>
-
+<?php
+  // There is only one row!
+     foreach ( $rows as $row ){
+?>  
 <form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-authors'?>" method="POST" name="adminForm">
 	<table class="widefat page fixed" cellspacing="0">
 		<tr>
@@ -13,7 +16,7 @@
 				Firstname:
 			</td>
 			<td width="80%">
-				<input type="text" name="authFirst">
+				<input type="text" name="authFirst" value="<?php echo $row->first; ?>">
 			</td>
 		</tr>
 		<tr>
@@ -21,7 +24,7 @@
 				Middlename:
 			</td>
 			<td width="80%">
-				<input type="text" name="authMiddle">
+				<input type="text" name="authMiddle" value="<?php echo $row->middle; ?>">
 			</td>
 		</tr>
 		<tr>
@@ -29,7 +32,7 @@
 				Lastname:
 			</td>
 			<td width="80%">
-				<input type="text" name="authLast">
+				<input type="text" name="authLast" value="<?php echo $row->last; ?>">
 			</td>
 		</tr>
 		<tr>
@@ -37,11 +40,15 @@
 				University personnel?
 			</td>
 			<td width="80%">
-				<input type="checkbox" name="isInternal" value="isInternal" />
+				<input type="checkbox" name="isInternal"  value="<?php echo $row->isInternal; ?>" />
 			</td>
 		</tr>
 	</table>
+  <input type="hidden" name="authid" value="<?php echo $row->authid; ?>" />
 	<input type="hidden" name="pubid" value="<?php echo $_POST['id']; ?>" />
 	<input type="hidden" name="task" value="authSave" />
 	<input class="button-primary" type="submit" name="OK" value="<?php _e ('OK', 'BibTeX-plugin'); ?>"/>
 </form>
+<?php 
+    } // ending foreach
+?>

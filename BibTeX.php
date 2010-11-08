@@ -35,7 +35,7 @@ class BibTeX_Plugin
 	function BibTeX_Plugin ()
 	{
 		$this->database_interface = new BT_database;
-		@include dirname( __FILE__ ).'/models/BibTex.php';
+		@include dirname( __FILE__ ).'/models/BibTeX.php';
 		if (is_admin ())
 		{
 			if(class_exists('Structures_BibTex')) {
@@ -45,7 +45,7 @@ class BibTeX_Plugin
 			elseif(!class_exists('Structures_BibTex') && is_admin()) {
 				add_action('admin_notices', array(&$this,'BibTeX_admin_message'));	
 			}
-			/*CB some formatting for the admin */		
+			//CB some formatting for the admin 		
 			add_action('admin_head', array( &$this, 'BibTeX_admin_css'));
 		}
 		add_filter('the_content', array( &$this, 'BibTeX_filter_content'));
@@ -255,9 +255,9 @@ class BibTeX_Plugin
 		/* records */
 		$query = $wpdb->prepare("SELECT * FROM ".$this->database_interface->get_tablename('auth')." AS A INNER JOIN ".$this->database_interface->get_tablename('pubauth')." AS PA ON A.Authid = PA.authid WHERE pubid=%d order by num;",$bibID);
 		$authrowsobj = $wpdb->get_results($query);
-		for($i=0;$i<count($authrowsobj);$i++){
+		for($i=0;$i<count($authrowsobj);$i++)
 			$authrows[$i]=$this->array_combine_emulated($authfields,$authrowsobj[$i]);
-		}
+		
 		return $authrows;
 	}
 
@@ -290,31 +290,7 @@ class BibTeX_Plugin
 		$bibtexcode = "";
 		/* authors */
 		if ($this->keyExistsOrIsNotEmpty('authorsnames',$details)){  /* author role */
-			for($i=0;$i<count($authors);$i++){
-				if($i!=0){
-					if($i==count($authors)-1){
-						$authstring = $authstring." and ";
-					} else {
-						$authstring = $authstring.", ";
-					}
-				}
-				if($this->keyExistsOrIsNotEmpty('first',$authors[$i])){
-					$fnames = array();
-					$fnames = split(" ",str_replace('~', " ", $authors[$i]['first']));
-					for($j=0; $j < sizeof($fnames); $j++){
-						//$authstring = $authstring." ". $fnames[$j];
-						//CB: initials only
-						$authstring = $authstring." ". substr($fnames[$j],0,1) . ". ";
-					}
-				}
-				if($this->keyExistsOrIsNotEmpty('middle',$authors[$i])){
-					$authstring = $authstring." ". substr($authors[$i]['middle'],0,1) . ". ";
-				}
-				if($this->keyExistsOrIsNotEmpty('last',$authors[$i])){
-					$authstring = $authstring." ".str_replace('~', "&nbsp;", $authors[$i]['last']);
-				}
-			}
-			
+      $authstring = $this->generateAuthorNamesString($authors);			
 		} else if ($this->keyExistsOrIsNotEmpty('editor',$details)){ /* editor role */
 			$authstring = $row['editor'];
 		}
@@ -382,6 +358,70 @@ class BibTeX_Plugin
 		return wp_specialchars($authstring) . ", " . $pub . $doi . $abstract . $bibtexcode;
 	}
 	
+  /**
+   * Generates a string with all authors names, First Middle Last, from an array of elements
+   * @param object $authors: the array of first middle and last elements
+   * @return The string with all authors, separated by commas except for the last one, separated 
+   * by the AND word.
+   */
+  function generateAuthorNamesString($authors)
+  {
+    for($i=0;$i<count($authors);$i++){
+        if($i!=0){
+          if($i==count($authors)-1){
+            $authstring = $authstring." and ";
+          } else {
+            $authstring = $authstring.", ";
+          }
+        }
+        if($this->keyExistsOrIsNotEmpty('first',$authors[$i])){
+          $fnames = array();
+          $fnames = split(" ",str_replace('~', " ", $authors[$i]['first']));
+          for($j=0; $j < sizeof($fnames); $j++){
+            //$authstring = $authstring." ". $fnames[$j];
+            //CB: initials only
+            $authstring = $authstring." ". substr($fnames[$j],0,1) . ". ";
+          }
+        }
+        if($this->keyExistsOrIsNotEmpty('middle',$authors[$i])){
+          $authstring = $authstring." ". substr($authors[$i]['middle'],0,1) . ". ";
+        }
+        if($this->keyExistsOrIsNotEmpty('last',$authors[$i])){
+          $authstring = $authstring." ".str_replace('~', "&nbsp;", $authors[$i]['last']);
+        }
+    }
+    return $authstring;
+  }
+
+  /**
+   * Generates a shortened string with the authors' names. If there are at most two authors,
+   * they are both listed, otherwise et al. is used
+   **/
+   function generateAuthorShortNameString($authors)
+   {
+        $authnames = '';
+        $shortauthnames = '';
+        $authorcount=0;
+        $authortot=count($autharray);
+        foreach ( $autharray as $author){
+          $authorcount++;
+          foreach ($author as $afield => $avalues)
+            $author[$afield]=ereg_replace('[{}]','',$wpdb->escape($avalues));
+          
+          $shortauthnames =$shortauthnames.$author['first']." ";
+          $shortauthnames =$shortauthnames.substr($author['middle'],0,1)." ";
+          $shortauthnames =$shortauthnames.$author['last'];
+          
+          if($authortot>2){
+            $shortauthnames = $shortauthnames." <i>et al.</i>";
+            break;
+          } else if ($authortot==2 && $authorcount ==1)
+            $shortauthnames = $shortauthnames." and ";
+        }
+        return $shortauthnames;
+   }
+
+  
 	/**
 	 * creates a <div> for the bibtex code  
 	 * @param string $bibkey: the bibtex identifier
@@ -427,25 +467,7 @@ class BibTeX_Plugin
 
 
 	
-	function keyExistsOrIsNotEmpty($key,$array)
-	{
-		if(array_key_exists($key,$array))
-		{
-			if($array[$key]!="")
-			{
-				return true;
-			}
-			else
-			{
-				return false;
-			}
-		}
-		else
-		{
-			return false;
-		}
-	}
-	
+  /* PLUGIN MENU */
 	
 	
 	function BibTeX_admin_menu ()
@@ -463,6 +485,7 @@ class BibTeX_Plugin
        		add_submenu_page('BibTeX-plugin', __("Input References", 'BibTeX-plugin'), __("Input References", 'BibTeX-plugin'), $allowed_group, 'BibTeX-input-references', array( &$this, 'input_references'));
        		add_submenu_page('BibTeX-plugin', __("View Categories", 'BibTeX-plugin'), __("View Categories", 'BibTeX-plugin'), $allowed_group, 'BibTeX-view-categories', array( &$this, 'view_categories'));
        		add_submenu_page('BibTeX-plugin', __("View Authors", 'BibTeX-plugin'), __("View Authors", 'BibTeX-plugin'), $allowed_group, 'BibTeX-view-authors', array( &$this, 'view_authors'));
+       		add_submenu_page('BibTeX-plugin', __("Merge Authors", 'BibTeX-plugin'), __("Merge Authors", 'BibTeX-plugin'), $allowed_group, 'BibTeX-merge-authors', array( &$this, 'merge_authors'));
        		add_submenu_page('BibTeX-plugin', __("Configuration", 'BibTeX-plugin'), __("Configuration", 'BibTeX-plugin'), 'manage_options', 'BibTeX-configuration', array( &$this, 'configuration'));
        		//add_action( "admin_head", 'calendar_add_javascript' );
      	}
@@ -496,7 +519,7 @@ class BibTeX_Plugin
 			default:
 				$this->viewBib();
 				break;
-		}
+		  }
     }
     
     function delBib()
@@ -505,28 +528,29 @@ class BibTeX_Plugin
     	global $wpdb;
     	foreach($id as $bid)
     	{
-			$query = $wpdb->prepare("DELETE from ".$this->database_interface->get_tablename('main')." where pubid=%d", $bid);
-			$wpdb->query($query);
-			$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('content')." where id=(%d)", $bid);
-			$wpdb->query($query);
-			$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('categories')." where id=(%d)", $bid);
-			$wpdb->query($query);
-			
-			/* DELETE publication authors reference*/
-			$query = $wpdb->prepare("DELETE from ".$this->database_interface->get_tablename('pubauth')." where pubid=%d", $bid);
-			$wpdb->query($query);
-			/* delete all authors without publications */
-			$this->deleteAuthorsNoPub();			
-		}
+				$query = $wpdb->prepare("DELETE from ".$this->database_interface->get_tablename('main')." where pubid=%d", $bid);
+				$wpdb->query($query);
+				$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('content')." where id=(%d)", $bid);
+				$wpdb->query($query);
+				$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('categories')." where id=(%d)", $bid);
+				$wpdb->query($query);
+				
+				/* DELETE publication authors reference*/
+				$query = $wpdb->prepare("DELETE from ".$this->database_interface->get_tablename('pubauth')." where pubid=%d", $bid);
+				$wpdb->query($query);
+				/* delete all authors without publications */
+				$this->deleteAuthorsNoPub();			
+			}
     }
 
-    function delAuthorPub()
-    {
+	function delAuthorPub()
+	{
  		$pubid = $_GET['id'];
 		$authid = $_GET['authid'];
 		$this->deletePublicationAuthor($authid,$pubid);
-    }
-    
+  }
+  
+
 	/**
 	 * Deletes all authors without a publication 
 	 */
@@ -534,7 +558,7 @@ class BibTeX_Plugin
 	{
 
     	global $wpdb;
-		$query = $wpdb->prepare("SELECT DISTINCT A.authid from ".$this->database_interface->get_tablename('auth')."  A LEFT JOIN ".$this->database_interface->get_tablename('pubauth')." PA ON A.authid = PA.authid WHERE PA.pubid IS NULL;");
+			$query = $wpdb->prepare("SELECT DISTINCT A.authid from ".$this->database_interface->get_tablename('auth')."  A LEFT JOIN ".$this->database_interface->get_tablename('pubauth')." PA ON A.authid = PA.authid WHERE PA.pubid IS NULL;");
 		$authordata = $wpdb->get_results($query);
 		foreach($authordata as $auth){
 			$query = $wpdb->prepare("DELETE from ".$this->database_interface->get_tablename('auth')." WHERE authid=".$auth->authid.";");
@@ -546,13 +570,13 @@ class BibTeX_Plugin
     {
     	global $wpdb;
     	$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('main'));
-		$wpdb->query($query);
-		$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('auth'));
-		$wpdb->query($query);
-		$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('content'));
-		$wpdb->query($query);
-		$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('categories'));
-		$wpdb->query($query);
+			$wpdb->query($query);
+			$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('auth'));
+			$wpdb->query($query);
+			$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('content'));
+			$wpdb->query($query);
+			$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('categories'));
+			$wpdb->query($query);
     }
 	
     function editBib()
@@ -678,6 +702,8 @@ class BibTeX_Plugin
 				}
 			}
 		}
+    /**CB NOT WITH NEW AUTHOR MANAGEMENT */
+    /*
 		$newauthor=array();
 		for($i=0;$i<$authornumber;$i++)
 		{
@@ -712,12 +738,13 @@ class BibTeX_Plugin
 			$autharray = $newdata['author'];
 			$newdata = array_diff($newdata,$autharray);
 		}
-		//prepare statement for inserting fields
+    **/
+    //prepare statement for inserting fields
 		foreach($newdata as $key=>$data)
 		{
 			$updates[] = $key."='".$wpdb->escape($data)."'";
 		}
-		if(count($updates))
+    if(count($updates))
 		{
 			$update = implode(",", array_values($updates));
 			$query = "update ".$this->database_interface->get_tablename('main')." set ".$update." where pubid=".$id;
@@ -725,6 +752,7 @@ class BibTeX_Plugin
 		}
 
 		//prepare statement for author info
+		/*
 		if($authexists)
 		{
 			$authnames = '';
@@ -776,6 +804,7 @@ class BibTeX_Plugin
 			$query = $wpdb->prepare("update ".$this->database_interface->get_tablename('main')." set shortauthnames=%s where pubid=%d", $shortauthnames, $id);
 			$wpdb->query($query);
 		}
+    */
 		//sort out categories
 		//delete old values 
 		$query = $wpdb->prepare("delete from ".$this->database_interface->get_tablename('categories')." where id=%d", $id);
@@ -797,10 +826,10 @@ class BibTeX_Plugin
     function checkin()
     {
     	global $wpdb;
-		$id = $_POST['id'];
-		//check in
-		$query = $wpdb->prepare("update ".$this->database_interface->get_tablename('main')." set checkedout='0' where pubid=(%d)", $id);
-		$wpdb->query($query);
+		  $id = $_POST['id'];
+		  //check in
+		  $query = $wpdb->prepare("update ".$this->database_interface->get_tablename('main')." set checkedout='0' where pubid=(%d)", $id);
+		  $wpdb->query($query);
     }
     
     function viewBib()
@@ -835,11 +864,11 @@ class BibTeX_Plugin
 			default:
 				$this->bibInput();
 				break;
-		}
+		  }
     }
     
     function getStatistics(&$bibtex)
-	{
+	 {
     	$stat = $bibtex->getStatistic();
     	$ret = 'Parsed Data:<ul>';
     	$sum = 0;
@@ -874,68 +903,54 @@ class BibTeX_Plugin
     {
     	$parsed_status = false;
     	global $wpdb;
-		$query = $wpdb->prepare("SELECT * from ".$this->database_interface->get_tablename('config'));
-		$querysets = $wpdb->get_results($query);
-		foreach($querysets as $config)
-		{
-			$sets[$config->variable]=$config->value;
-		}
+		  $query = $wpdb->prepare("SELECT * from ".$this->database_interface->get_tablename('config'));
+		  $querysets = $wpdb->get_results($query);
+		  foreach($querysets as $config)
+			   $sets[$config->variable]=$config->value;
     	$allfields = $this->database_interface->getTableFields(array($this->database_interface->get_tablename('main'),$this->database_interface->get_tablename('auth')));
-		$fields =array_keys($allfields[$this->database_interface->get_tablename('main')]);
-		$authfields =array_keys($allfields[$this->database_interface->get_tablename('auth')]);
+		  $fields =array_keys($allfields[$this->database_interface->get_tablename('main')]);
+		  $authfields =array_keys($allfields[$this->database_interface->get_tablename('auth')]);
     	$bibtex = new Structures_BibTex();
     	$bibtex->maxEntryLength = 10000;
     	$catIds = $_POST['category'];
-		$inputtype = $_POST['inputtype'];
-		//adding a bibtex string
-		if($inputtype=="file")
-		{
-			$filename = $_FILES['userfile']['tmp_name'];
-			$origfilename = $_FILES['userfile']['name'];
-			if (strcasecmp(substr($origfilename,-4),'.bib')==0)
-			{
-				$bibtex->loadFile($filename);
-				$parsed_status = $bibtex->parse();
-				if($parsed_status===true)
+		  $inputtype = $_POST['inputtype'];
+		  //adding a bibtex string
+		  if($inputtype=="file") {  // FILE INPUT
+			   $filename = $_FILES['userfile']['tmp_name'];
+			   $origfilename = $_FILES['userfile']['name'];
+			   if (strcasecmp(substr($origfilename,-4),'.bib')==0)
+			   {
+				    $bibtex->loadFile($filename);
+				    $parsed_status = $bibtex->parse();
+				    if($parsed_status===true)
                 	$parsed_status = (0 == count($bibtex->warnings));
-            	$message = $this->getStatistics($bibtex);
-			}
-			else
-			{
-				$message="Not a .bib file";
-				$parsed_status = false;
-			}
-		}
-		elseif($inputtype=="string")
-		{
-			$bibstring = isset ($_POST['bib'] ) ? $_POST['bib'] : '';
-			$bibstring = str_replace("\\","",$bibstring);
+            $message = $this->getStatistics($bibtex);
+			   } else {
+				    $message="Not a .bib file";
+				    $parsed_status = false;
+			   }
+		  } elseif($inputtype=="string") { // PASTED BIBTEX STRING
+		     $bibstring = isset ($_POST['bib'] ) ? $_POST['bib'] : '';
+			   $bibstring = str_replace("\\","",$bibstring);
     	
-			$bibtex->content = $bibstring;
-			$parsed_status = $bibtex->parse();
-			if($parsed_status)
-            	$parsed_status = (0 == count($bibtex->warnings));
-        	$message = $this->getStatistics($bibtex);
-		}
-		else
-		{
-			$authornumber=isset ($_POST['authornumber'] ) ? $_POST['authornumber'] : '';
-			//get fields
-			foreach($fields as $field)
-			{
-				$stringin=isset ($_POST[$field] ) ? $_POST[$field] : '';
-				if(''!=$stringin)
-				{
-					$newdata[$field]=$stringin;
-				}
-			}
-			for($i=0;$i<$authornumber;$i++)
-			{
-				foreach($authfields as $authfield)
-				{
+			   $bibtex->content = $bibstring;
+			   $parsed_status = $bibtex->parse();
+			   if($parsed_status)
+            $parsed_status = (0 == count($bibtex->warnings));
+        $message = $this->getStatistics($bibtex);
+		  } else {  // INSERTING ALL FIELDS MANUALLY
+			  $authornumber=isset ($_POST['authornumber'] ) ? $_POST['authornumber'] : '';
+			  //get fields
+			  foreach($fields as $field) {
+			    $stringin=isset ($_POST[$field] ) ? $_POST[$field] : '';
+			    if(''!=$stringin) {
+					 $newdata[$field]=$stringin;
+				  }
+			   }
+			 for($i=0;$i<$authornumber;$i++) {
+				foreach($authfields as $authfield) {
 					$stringin=isset ($_POST[$authfield.$i] ) ?  $_POST[$authfield.$i]: '';
-					if(''!=$stringin)
-					{
+					if(''!=$stringin) {
 						$newdata['author'][$i][$authfield] = $stringin;
 					}
 				}
@@ -951,24 +966,19 @@ class BibTeX_Plugin
 				$message="No file or text data";
 			}
 		}
-		if($parsed_status)
-		{
+		if($parsed_status){
 			$this->savetomysql($bibtex->data,$fields,$catIds,$sets);
 			///reset of the inputtype POST variable
 			$_POST['inputtype']='';
 			$this->bibInput();
-
-    	}
-    	else
-    	{
-        	$errcod = array('All parsed records are <b>DROPPED</b>');
+    } else {
+      $errcod = array('All parsed records are <b>DROPPED</b>');
 		}
-    	echo '<hr />', $message;
-    	echo '<hr />';
-		
-    }
+    echo '<hr />', $message;
+    echo '<hr />';	
+  }
     
-    //saves bibtex data in mysql
+  //saves bibtex data in mysql
 	function savetomysql($bibarray,$fields,$catIds,$sets)
 	{
 		global $wpdb;
@@ -978,23 +988,18 @@ class BibTeX_Plugin
 			$minibibtex->maxEntryLength = 10000;
 			$minibibtex->data[0] = $paper;
 			$authexists = 0;
-			if(array_key_exists('author',$paper))
-			{
+			if(array_key_exists('author',$paper)){
 				$authexists = 1;
 				$autharray = $paper['author'];
 				$paper = array_diff($paper,$autharray);
 			}
 			//check all fields allowed
 			$unsavedfields=array();
-			foreach ($paper as $fieldsgiven => $valuesgiven)
-			{
-				if((!in_array($fieldsgiven,$fields)))
-				{
+			foreach ($paper as $fieldsgiven => $valuesgiven) {
+				if((!in_array($fieldsgiven,$fields))) {
 					$unsavedfields[]=$paper[$fieldsgiven];
 					unset($paper[$fieldsgiven]); 
-				}
-				else
-				{
+				} else {
 					//sort out escape chars and remove {}
 					$paper[$fieldsgiven]=ereg_replace('[{}]','',$wpdb->escape($valuesgiven));
 				}
@@ -1004,14 +1009,10 @@ class BibTeX_Plugin
 			if(!array_key_exists('doi',$paper))
 			{
 				$urlstring1=array();
-				foreach($unsavedfields as $field)
-				{
-					if(preg_match('!(http://|ftp://|https://)[a-z0-9_\.\/\?\&-\=]*!i',$field,$urlstring1) )
-					{
+				foreach($unsavedfields as $field) {
+					if(preg_match('!(http://|ftp://|https://)[a-z0-9_\.\/\?\&-\=]*!i',$field,$urlstring1)){
 						$paper['url']=sanitize_url($urlstring1[0]);
-					}
-					elseif(preg_match('!(www\.)[a-z0-9_\.\/\?\&-\=]*!i',$field,$urlstring1) )
-					{
+					} elseif(preg_match('!(www\.)[a-z0-9_\.\/\?\&-\=]*!i',$field,$urlstring1) ) {
 						$paper['url']=sanitize_url("http://".$urlstring1[0]);
 					}
 				}
@@ -1077,50 +1078,30 @@ class BibTeX_Plugin
 				}
 			}
 			
-			//prepare statements for inserting categoryids
+			//prepare statements for inserting category ids
 			foreach ( array_merge($catIds,$dynamicCats) as $catId )
 			{
 				$query = $wpdb->prepare("INSERT INTO ".$this->database_interface->get_tablename('categories')." (id,categories) values (%d,%d)", $pubID, $catId);
 				$wpdb->query($query);
 			}
-			//prepare statement for author info
 			
+			//prepare statement for author info
 			//** CB: new version, with additional author table
 			
-			if($authexists)
-			{
+			if($authexists) {
 				$authnames = '';
-				$shortauthnames = '';
 				$authorcount=0;
-				foreach ( $autharray as $author)
-				{
+        $authortot=count($autharray);
+				foreach ( $autharray as $author){
 					$authorcount++;
 					foreach ($author as $afield => $avalues)
-					{
 						$author[$afield]=ereg_replace('[{}]','',$wpdb->escape($avalues));
-					}
 					$authnames =$authnames." ";
-					if($authorcount==1)
-					{
-						$shortauthnames =$shortauthnames." ";
-					}
-					if($sets['fullnames']=="on")
-					{
-						$authnames =$authnames.$author['first']." ";
-						if($authorcount==1)
-						{
-							$shortauthnames =$shortauthnames.$author['first']." ";
-						}
-						/* CB: middle name */
-						if($author['middle'] != '')
-							$authnames =$authnames.$author['middle'].". "; 
-					}
+					$authnames =$authnames.$author['first']." ";
+					if($author['middle'] != '')
+						$authnames =$authnames.substr($author['middle'],0,1).". "; 
 					
 					$authnames =$authnames.$author['last'];
-					if($authorcount==1)
-					{
-						$shortauthnames =$shortauthnames.$author['last'];
-					}
 					$values2 = implode("','", array_values($author));
 					$keys2 = implode(",", array_keys($author));
 					
@@ -1136,15 +1117,12 @@ class BibTeX_Plugin
 					/* add relation publication (pubID) - author (autID) */
 					$query = "INSERT INTO ".$this->database_interface->get_tablename('pubauth')." (pubid, authid, num) VALUES (".$pubID.",".$autID.",".$authorcount.")";
 					$wpdb->query($query);
+          if($authorcount == $authortot-1)
+            $authnames =$authnames." and";
+          else if($authorcount < $authortot-1)
+            $authnames =$authnames.",";
 				}
-				if($authorcount>2)
-				{
-					$shortauthnames = $shortauthnames." <i>et al.</i>";
-				}
-				else
-				{
-					$shortauthnames = $authnames;
-				}				
+        $shortauthnames = $this->generateAuthorShortNameString($authors);
 				$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('main')." SET authorsnames=%s WHERE pubid=%d", $authnames, $pubID);
 				$wpdb->query($query);
 				
@@ -1188,20 +1166,20 @@ class BibTeX_Plugin
 	 * 
 	 */
    function addAuthorIfNew($firstname, $middlename, $lastname, $isInt)
-	{
-   		global $wpdb;
-		$authID = $this->getAuthorID($lastname, $firstname);
-		/* there is not another author with same last and first name */
-		if($authID == 0){
-			$strSQL = "INSERT INTO ".$this->database_interface->get_tablename('auth') . " (first, middle, last, isInternal) ";
-			$strSQL = $strSQL." VALUES('".$firstname."', '".$middlename."', '".$lastname."',".$isInt.");";
-			$query = $wpdb->prepare($strSQL);
-			$wpdb->query($query);
-			/* retrieved the uid of the author just insterted */
-			$query = $wpdb->prepare("SELECT authid FROM ".$this->database_interface->get_tablename('auth')." ORDER BY authid DESC LIMIT 1;");
-			$authID= $wpdb->get_var($query);
-		}
-		return $authID;
+	 {
+	   global $wpdb;
+	   $authID = $this->getAuthorID($lastname, $firstname);
+		 /* there is not another author with same last and first name */
+		 if($authID == 0){
+		   $strSQL = "INSERT INTO ".$this->database_interface->get_tablename('auth') . " (first, middle, last, isInternal) ";
+			 $strSQL = $strSQL." VALUES('".$firstname."', '".$middlename."', '".$lastname."',".$isInt.");";
+			 $query = $wpdb->prepare($strSQL);
+			 $wpdb->query($query);
+			 /* retrieved the uid of the author just insterted */
+			 $query = $wpdb->prepare("SELECT authid FROM ".$this->database_interface->get_tablename('auth')." ORDER BY authid DESC LIMIT 1;");
+			 $authID= $wpdb->get_var($query);
+     }
+     return $authID;
 	}
 
 
@@ -1279,6 +1257,7 @@ class BibTeX_Plugin
     function view_authors()
     {
     	$task = isset ($_POST['task']) ? $_POST['task'] : '';
+      $task = empty($task) ? (isset ($_GET['task']) ? $_GET['task'] : '') : $task;
    		switch($task)
     	{
 			case 'authNew':
@@ -1290,25 +1269,34 @@ class BibTeX_Plugin
 			case 'authDelete':
 				$this->delAuth();$this->viewAuth();
 				break;
-			case 'authMerge':
-				$this->mergeAuth();$this->viewAuth();
-				break;
+      /* CB */
+      case "authUpdate":
+        $this->authNew();
+        break;
 			default:
 				$this->viewAuth();
 				break;
-		}
+			}
     }
+
 
 	/* AUTHORS MANAGEMENT */
 
     function authNew()
     {
-    	$this->render_admin ('authNew');
+      $pubid = $_GET['id'];
+      $authid = $_GET['authid'];
+      if($authid != ''){
+        global $wpdb;
+        $query = $wpdb->prepare("SELECT * from ".$this->database_interface->get_tablename('auth')." WHERE authid=".$authid);
+        $rows = $wpdb->get_results($query);
+      }
+    	$this->render_admin ('authNew', array ('rows' => $rows));
     }
 
     function authSave()
     {
-		$authID = $_POST['authID'];
+		$authID = $_POST['authid'];
 		$authFirst = $_POST['authFirst'];
 		$authMiddle = $_POST['authMiddle'];
 		$authLast = $_POST['authLast'];
@@ -1317,7 +1305,7 @@ class BibTeX_Plugin
 		global $wpdb;
 
 		if($authID > 0){ /* author update, at the moment there is no menu supporting it */
-			$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('auth')." SET first='".$authFirst."', middle='".$authMiddle."', last='".$authLast."' WHERE authid=".$authID.";");
+			$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('auth')." SET first='".$authFirst."', middle='".$authMiddle."', last='".$authLast."', isInternal=".$isInt." WHERE authid=".$authID.";");
 			$wpdb->query($query);
 		} 	else {
 			$authID = $this->addAuthorIfNew($authFirst,$authMiddle,$authLast,$isInt);
@@ -1330,7 +1318,10 @@ class BibTeX_Plugin
 		}
 	}
 
-	
+	/**
+	 *	Lists all authors.
+	 *
+	 **/
 	function viewAuth()
 	{
 		global $wpdb;
@@ -1339,43 +1330,127 @@ class BibTeX_Plugin
 		$this->render_admin ('authView', array ('rows' => $rows));
 	}    
 
+	/**
+	 *	Deletes a list of authors and the publications related to them.
+	 *	Finally, it removes all authors without publications.
+	 **/
 	function delAuth()
 	{
-		$id = isset ($_POST['post']) ? $_POST['post'] : array();
-    	global $wpdb;
-    	foreach($id as $authid)
-    	{
-			/* deleting all the author's publications */
-			$strSQL = "SELECT pubid FROM ".$this->database_interface->get_tablename('pubauth')." WHERE authid=".$authid.";";
-			$query = $wpdb->prepare($strSQL);
-			$pubids = $wpdb->get_results($query);
-			foreach($pubids as $pid){
-				$strSQL = "DELETE FROM ".$this->database_interface->get_tablename('main')." WHERE pubid=".$pid->pubid.";";
+			$id = isset ($_POST['post']) ? $_POST['post'] : array();
+	    	global $wpdb;
+	    	foreach($id as $authid)
+	    	{
+				/* deleting all the author's publications */
+				$strSQL = "SELECT pubid FROM ".$this->database_interface->get_tablename('pubauth')." WHERE authid=".$authid.";";
 				$query = $wpdb->prepare($strSQL);
-				$wpdb->query($query);				
+				$pubids = $wpdb->get_results($query);
+				foreach($pubids as $pid){
+					$strSQL = "DELETE FROM ".$this->database_interface->get_tablename('main')." WHERE pubid=".$pid->pubid.";";
+					$query = $wpdb->prepare($strSQL);
+					$wpdb->query($query);
+				}
+				/* deleting the author from the publication author table */
+				$strSQL = "DELETE FROM ".$this->database_interface->get_tablename('pubauth')." WHERE authid=".$authid.";";
+				$query = $wpdb->prepare($strSQL);
+				$wpdb->query($query);
+				/* deleting the author from the table */
+				$strSQL = "DELETE FROM ".$this->database_interface->get_tablename('auth')." WHERE authid=".$authid.";";
+				$query = $wpdb->prepare($strSQL);
+				$wpdb->query($query);
 			}
-			/* deleting the author from the publication author table */
-			$strSQL = "DELETE FROM ".$this->database_interface->get_tablename('pubauth')." WHERE authid=".$authid.";";
-			$query = $wpdb->prepare($strSQL);
-			$wpdb->query($query);
-			/* deleting the author from the table */
-			$strSQL = "DELETE FROM ".$this->database_interface->get_tablename('auth')." WHERE authid=".$authid.";";
-			$query = $wpdb->prepare($strSQL);
-			$wpdb->query($query);
-		}
-		$this->deleteAuthorsNoPub();
+			$this->deleteAuthorsNoPub();
 	}
 
-	function mergeAuth()
-	{
-		$id = isset ($_POST['post']) ? $_POST['post'] : array();
-    	global $wpdb;
-    	foreach($id as $authid)
+  /**
+   * Merges all the authors passed from the form: the first one is to replace all others
+   *
+   **/
+   function mergeAuth()
+   {
+   		global $wpdb;
+			$query = $wpdb->prepare("SELECT * from ".$this->database_interface->get_tablename('auth')." order by Last, First");
+			$rows = $wpdb->get_results($query);
+    	$this->render_admin ('authMerge', array ('rows' => $rows));
+   }
+
+   function merge_authors()
+   {
+   		$task = isset ($_POST['task']) ? $_POST['task'] : '';
+    	$firstA = isset ($_POST['mainAuth']) ? $_POST['mainAuth'] : -1;
+   		
+  		if($task == "authMerge"){
+	    	if($firstA == -1)
+	    		$this->mergeAuth();
+	    	 else {
+	  	   	$this->mergeAuthorList();
+	  	   	$this->mergeAuth();
+	    	}
+  		} else 
+				$this->mergeAuth();
+  		
+   }
+
+	/**
+	 *  Receives the list of authors to be merged, and one by one performs the operation
+	 *	Returns the number of merged authors.
+	 */
+  function mergeAuthorList()
+  { 
+    	$id = isset ($_POST['post']) ? $_POST['post'] : array();
+    	$firstA = isset ($_POST['mainAuth']) ? $_POST['mainAuth'] : -1;
+
+	    global $wpdb;
+ 	  	$i=0;
+   		foreach($id as $authid)
     	{
-		/* TO BE COMPLETED */
-		}
-	}
+    		if($firstA != $authid){
+	    		$this->merge2Authors($firstA,$authid);
+	    		$i++;
+    		}
+	    }
+	    return $i;
+  }
+  
+  
+  
+  /**
+   * Merges two authors, the second is substituted with the first in the references
+   * To clean-up the db from duplicate entries (shortened names)
+   **/
+   function merge2Authors($firstA, $secondA)
+   { 
+    	global $wpdb;
+    	/* retrieve publications: shortnames need to be updated */
+    	$strSQL = "SELECT pubid from " .$this->database_interface->get_tablename('pubauth')." WHERE authid=".$secondA.";";
+    	$query = $wpdb->prepare($strSQL);
+    	$pubids = $wpdb->get_results($query);
+    	
+			$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('pubauth')." SET authid=".$firstA." WHERE authid=".$secondA.";");
+   		$wpdb->query($query);
+   		
+   		/* remove the author who - now - has no publications */
+   		$this->deleteAuthorsNoPub();
 
+
+   		/* update shortnames in publications */
+   		foreach($pubids as $pid)
+				$this->updateBibShortAuthors($pid);
+   		
+   		
+   }
+    
+  /**
+   * Updates the shortname field of the publication based on the names of the authors.
+   * Used for maintanance when changing authors.
+   * 
+   */
+   function updateBibShortAuthors($pubid){
+      global $wpdb;
+      $authors = $this->get_publication_authors($pubid);
+      $shortNames = $this->generateAuthorShortNameString($authors);
+      $query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('main')." SET authorsnames=%s WHERE pubid=%d", $authnames, $pubID);
+      $wpdb->query($query);
+   }
 
 	/* CATEGORIES */
     function view_categories()
@@ -1395,7 +1470,7 @@ class BibTeX_Plugin
 			default:
 				$this->viewCat();
 				break;
-		}
+			}
     }
 	
 	
@@ -1554,6 +1629,8 @@ class BibTeX_Plugin
 		$this->database_interface->drop_tables();		
 	}
 	
+  /* utilities */
+  
 	function debugMessage($message){
 		echo "
 		<script type='text/javascript' >
@@ -1563,7 +1640,15 @@ class BibTeX_Plugin
 		
 	}
 	
-	
+  function keyExistsOrIsNotEmpty($key,$array)
+  {
+    if(array_key_exists($key,$array))
+      if($array[$key]!="")
+        return true;
+      return false;
+    return false;
+  }
+  	
 }
 
 /**

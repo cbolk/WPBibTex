@@ -1,7 +1,7 @@
 <?php if (!defined ('ABSPATH')) die ('No direct access allowed'); ?>
 
 <div class="wrap">
-<h2><?php _e ('BibTeX Plugin | Bibliography Author Manager', 'BibTeX-plugin') ?></h2>
+<h2><?php _e ('BibTeX Plugin | Bibliography Author Manager - Merge', 'BibTeX-plugin') ?></h2>
 </div>
 
 <div class="wrap">
@@ -47,26 +47,29 @@
 
 <div class="clear"></div>
 
-<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-authors' ?>" method="post" name="adminForm">
+<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-merge-authors' ?>" method="post" name="adminForm">
 	<table  class="widefat page fixed" cellspacing="0">
 		<thead>
 			<tr>
+				<th width="10%" align="center">
+					Author to keep
+				</th>
 				<th width="5%" align="center">
-					<input type="checkbox" name="toggle" value="" onclick="checkAll(<?php echo $total_rows; ?>);" />
+					&nbsp;
 				</th>
 				<th width="15%" align="left" nowrap="nowrap">
 					Firstname
 				</th>
-				<th width="10%" align="left" nowrap="nowrap">
+				<th width="15%" align="left" nowrap="nowrap">
 					Middlename
 				</th>
-				<th width="20%" align="left">
+				<th width="15%" align="left">
 					Lastname
 				</th>
-				<th width="15%" align="center">
-					University Staff
+				<th width="10%" align="center">
+					Internal
 				</th>
-				<th width="40%" align="center">
+				<th width="30%" align="center">
 					&nbsp;
 				</th>
 			</tr>
@@ -82,23 +85,26 @@
 				{
 ?>
 					<tr>
+						<td  align="center" width="10%" scope="row" class="check-column">
+							<input type="radio" name="mainAuth" value="<?php echo $row->authid; ?>" />
+						</td>
 						<td  align="center" width="5%" scope="row" class="check-column">
 							<input type="checkbox" name="post[]" value="<?php echo $row->authid; ?>" />
 						</td>
-						<td width="15%" align="left">
+						<td width="20%" align="left">
 							<?php echo $row->first; ?>
 						</td>
-						<td width="10%" align="left">
+						<td width="20%" align="left">
 							<?php echo $row->middle; ?>
 						</td>
 						<td width="20%" align="left">
 							<?php echo $row->last; ?>
 						</td>
-						<td align="center" width="15%" scope="row" class="check-column" valign="middle">
+						<td  align="center" width="5%" scope="row" class="check-column" valign="middle">
 							<input type="checkbox" value="<?php echo $row->isInternal; ?>" <?php if($row->isInternal==1) echo "checked"; ?>/>
 						</td>
-						<td width="40%" align="left">
-							 <a class="inputbutton" href="admin.php?page=BibTeX-view-authors&task=authUpdate&authid=<?php echo $row->authid;?>" Title="Update information on this author">Update Author</a>
+						<td width="30%" align="left">
+							<?php echo $row->isInternal; ?>
 						</td>
 					</tr>
 <?php		
@@ -112,15 +118,9 @@
 	if ( $page_links )
 		echo "<div class='tablenav-pages'>$page_links_text</div>";
 ?>
-  <br/>
- 
-	<input type="hidden" name="task" value="authDelete" />
-	<input class="button-primary" type="submit" name="Delete" value="<?php _e ('Delete Author', 'BibTeX-plugin'); ?>"/>
-	(<strong>Note:</strong> Eliminates all publications by the author)
+	<input type="hidden" name="task" value="authMerge" />
+	<input class="button-primary" type="submit" name="Merge" value="<?php _e ('&nbsp;Merge Authors&nbsp;', 'BibTeX-plugin'); ?>"/>
+	(<strong>Note:</strong> Specify in the first column the author to be kept, the others will be deleted.)
 </form>
 
-<form action="<?php print $_SERVER['PHP_SELF'] . '?page=BibTeX-view-authors' ?>" method="post" name="adminForm">
-	<input type="hidden" name="task" value="authNew" />
-	<input class="button-primary" type="submit" name="New" value="<?php _e ('&nbsp;&nbsp;New Author&nbsp;&nbsp;', 'BibTeX-plugin'); ?>"/>
-</form>
 

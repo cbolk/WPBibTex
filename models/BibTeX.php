@@ -943,7 +943,7 @@ class Structures_BibTex
             //Author
             if (array_key_exists('author', $entry)) {
                 if ($this->_options['extractAuthors']) {
-                    $tmparray = array(); //In this array the authors are saved and the joind with an and
+                    $tmparray = array(); //In this array the authors are saved and the joined with an and
                     foreach ($entry['author'] as $authorentry) {
                         $tmparray[] = $this->_formatAuthor($authorentry);
                     }
