@@ -475,9 +475,49 @@ class Structures_BibTex
             if (in_array('author', array_keys($ret)) && $this->_options['extractAuthors']) {
                 $ret['author'] = $this->_extractAuthors($ret['author']);
             }
+            //CB adding numeric year and month indication
+            if (in_array('year', array_keys($ret)))
+            		$ret['yy'] = (int)$ret['year'];
+            if (in_array('month', array_keys($ret)))
+            	  $ret['mm'] = $this->_month2numeric($ret['month']);
         }
         return $ret;
     }
+
+		/**
+		 * Transforms a Month indication in the numeric equivalent
+		 */
+		function _month2numeric($monthName)
+		{
+			$num = 0;
+			$name = strtoupper(trim($monthName));
+			//$this->debugMessage("month: " . $name);
+			if(strcmp($name,"JANUARY") == 0 || strcmp($name,"JAN.") == 0 || strcmp($name,"JAN") == 0)
+				$num = 1;
+			else if(strcmp($name,"FEBRUARY") == 0 || strcmp($name,"FEB.") == 0 || strcmp($name,"FEB") == 0)
+				$num = 2;
+			else if(strcmp($name,"MARCH") == 0 || strcmp($name,"MAR.") == 0 || strcmp($name,"MAR") == 0)
+				$num = 3;
+			else if(strcmp($name,"APRIL") == 0 || strcmp($name,"APR.") == 0 || strcmp($name,"APR") == 0)
+				$num = 4;
+			else if(strcmp($name,"MAY") == 0 || strcmp($name,"MAY") == 0)
+				$num = 5;
+			else if(strcmp($name,"JUNE") == 0 || strcmp($name,"JUN.") == 0 || strcmp($name,"JUN") == 0)
+				$num = 6;
+			else if(strcmp($name,"JULY") == 0 || strcmp($name,"JUL.") == 0 || strcmp($name,"JUL") == 0)
+				$num = 7;
+			else if(strcmp($name,"AUGUST") == 0 || strcmp($name,"AUG.") == 0 || strcmp($name,"AUG") == 0)
+				$num = 8;
+			else if(strcmp($name,"SEPTEMBER") == 0 || strcmp($name,"SEP.") == 0 || strcmp($name,"SEP") == 0)
+				$num = 9;
+			else if(strcmp($name,"OCTOBER") == 0 || strcmp($name,"OCT.") == 0 || strcmp($name,"OCT") == 0)
+				$num = 10;
+			else if(strcmp($name,"NOVEMBER") == 0 || strcmp($name,"NOV.") == 0 || strcmp($name,"NOV") == 0)
+				$num = 11;
+			else if(strcmp($name,"DECEMBER") == 0 || strcmp($name,"DEC.") == 0 || strcmp($name,"DEC") == 0)
+				$num = 12;
+			return $num;
+		}
 
     /**
      * Checking whether the position of the '=' is correct

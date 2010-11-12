@@ -40,7 +40,7 @@
 				University personnel?
 			</td>
 			<td width="80%">
-				<input type="checkbox" name="isInternal"  value="<?php echo $row->isInternal; ?>" />
+				<input type="checkbox" name="isInternal"  value="<?php echo $row->isInternal; ?>" <?php if($row->isInternal==1) echo "checked"; ?> />
 			</td>
 		</tr>
 	</table>

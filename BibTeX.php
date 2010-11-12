@@ -397,26 +397,25 @@ class BibTeX_Plugin
    * Generates a shortened string with the authors' names. If there are at most two authors,
    * they are both listed, otherwise et al. is used
    **/
-   function generateAuthorShortNameString($authors)
+   function generateAuthorShortNameString($autharray)
    {
         $authnames = '';
         $shortauthnames = '';
         $authorcount=0;
         $authortot=count($autharray);
-        foreach ( $autharray as $author){
+        foreach ($autharray as $author){
           $authorcount++;
-          foreach ($author as $afield => $avalues)
-            $author[$afield]=ereg_replace('[{}]','',$wpdb->escape($avalues));
+//        foreach ($author as $afield => $avalues)
+//          $author[$afield]=ereg_replace('[{}]','',$wpdb->escape($avalues));
           
           $shortauthnames =$shortauthnames.$author['first']." ";
-          $shortauthnames =$shortauthnames.substr($author['middle'],0,1)." ";
-          $shortauthnames =$shortauthnames.$author['last'];
-          
-          if($authortot>2){
-            $shortauthnames = $shortauthnames." <i>et al.</i>";
-            break;
-          } else if ($authortot==2 && $authorcount ==1)
-            $shortauthnames = $shortauthnames." and ";
+ 	        $shortauthnames =$shortauthnames.substr($author['middle'],0,1)." ";
+   	      $shortauthnames =$shortauthnames.$author['last'];
+     	    if($authortot>2){
+       	    $shortauthnames = $shortauthnames." <i>et al.</i>";
+         	  break;
+         	} else if ($authortot==2 && $authorcount ==1)
+           	$shortauthnames = $shortauthnames." and ";
         }
         return $shortauthnames;
    }
@@ -676,10 +675,10 @@ class BibTeX_Plugin
 		$newdata = $minibibtex->data[0];
 		$allfields = $this->database_interface->getTableFields(array($this->database_interface->get_tablename('main'),$this->database_interface->get_tablename('auth')));
 		$fields =array_keys($allfields[$this->database_interface->get_tablename('main')]);
-		$authfields =array_keys($allfields[$this->database_interface->get_tablename('auth')]);
+//		$authfields =array_keys($allfields[$this->database_interface->get_tablename('auth')]);
     	
-		$authfields = array_diff($authfields,array('id'));
-		$authfields = array_diff($authfields,array('num'));
+//		$authfields = array_diff($authfields,array('authid'));
+//		$authfields = array_diff($authfields,array('num'));
 		$fields = array_diff($fields,array('pubid'));
 		$fields = array_diff($fields,array('authorsnames'));
 		$fields = array_diff($fields,array('shortauthnames'));
@@ -697,7 +696,8 @@ class BibTeX_Plugin
 				{
 					//old data needs to be deleted
 					unset($newdata[$field]); 
-					$query = $wpdb->prepare("update ".$this->database_interface->get_tablename('content')." set %s=NULL where pubid=%d", $field, $id);
+					$strSQL ="update ".$this->database_interface->get_tablename('content')." set " .$field. "=NULL where pubid=". $id .";";
+					$query = $wpdb->prepare(strSQL);
 					$wpdb->query($query);
 				}
 			}
@@ -1003,7 +1003,7 @@ class BibTeX_Plugin
 					//sort out escape chars and remove {}
 					$paper[$fieldsgiven]=ereg_replace('[{}]','',$wpdb->escape($valuesgiven));
 				}
-			}
+			}			
 
 			//search for urls elsewhere
 			if(!array_key_exists('doi',$paper))
@@ -1011,9 +1011,9 @@ class BibTeX_Plugin
 				$urlstring1=array();
 				foreach($unsavedfields as $field) {
 					if(preg_match('!(http://|ftp://|https://)[a-z0-9_\.\/\?\&-\=]*!i',$field,$urlstring1)){
-						$paper['url']=sanitize_url($urlstring1[0]);
+						$paper['doi']=sanitize_url($urlstring1[0]);
 					} elseif(preg_match('!(www\.)[a-z0-9_\.\/\?\&-\=]*!i',$field,$urlstring1) ) {
-						$paper['url']=sanitize_url("http://".$urlstring1[0]);
+						$paper['doi']=sanitize_url("http://".$urlstring1[0]);
 					}
 				}
 				$urlstring2=array();
@@ -1021,11 +1021,11 @@ class BibTeX_Plugin
 				{
 					if(preg_match('!(http://|ftp://|https://)[a-z0-9_\.\/\?\&-\=]*!i',$paper['note'],$urlstring2) )
 					{
-						$paper['url']=sanitize_url($urlstring2[0]);
+						$paper['doi']=sanitize_url($urlstring2[0]);
 					}
 					elseif(preg_match('!(www\.)[a-z0-9_\.\/\?\&-\=]*!i',$paper['note'],$urlstring2) )
 					{
-						$paper['url']=sanitize_url("http://".$urlstring2[0]);
+						$paper['doi']=sanitize_url("http://".$urlstring2[0]);
 					}
 				}
 				if(array_key_exists('howpublished',$paper))
@@ -1086,7 +1086,7 @@ class BibTeX_Plugin
 			}
 			
 			//prepare statement for author info
-			//** CB: new version, with additional author table
+			// CB: new version, with additional author table
 			
 			if($authexists) {
 				$authnames = '';
@@ -1122,6 +1122,7 @@ class BibTeX_Plugin
           else if($authorcount < $authortot-1)
             $authnames =$authnames.",";
 				}
+	      $authors = $this->get_publication_authors($pubID);
         $shortauthnames = $this->generateAuthorShortNameString($authors);
 				$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('main')." SET authorsnames=%s WHERE pubid=%d", $authnames, $pubID);
 				$wpdb->query($query);

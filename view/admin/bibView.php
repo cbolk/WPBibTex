@@ -101,9 +101,9 @@
 							<?php echo $row->year; ?>
 						</td>
 						<td align="left">
-							<?php echo $row->URL; ?>
-							<?php if($row->URL!=""){echo "<br />";}?>
-							<?php echo $row->eprint; ?>
+							<?php if($row->doi!=""){
+									echo "<a target='_blank' href='".$row->doi."' class='external'><img src='".$this->get_bt_pluginURL() . "/doi.png' height='14' alt='Go to document in another window'>" ;}
+							?>
 						</td>
 					</tr>
 <?php		

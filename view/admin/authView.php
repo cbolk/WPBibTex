@@ -95,7 +95,7 @@
 							<?php echo $row->last; ?>
 						</td>
 						<td align="center" width="15%" scope="row" class="check-column" valign="middle">
-							<input type="checkbox" value="<?php echo $row->isInternal; ?>" <?php if($row->isInternal==1) echo "checked"; ?>/>
+							<input type="checkbox" disabled value="<?php echo $row->isInternal; ?>" <?php if($row->isInternal==1) echo "checked"; ?>/>
 						</td>
 						<td width="40%" align="left">
 							 <a class="inputbutton" href="admin.php?page=BibTeX-view-authors&task=authUpdate&authid=<?php echo $row->authid;?>" Title="Update information on this author">Update Author</a>
