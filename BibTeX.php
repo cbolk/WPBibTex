@@ -98,15 +98,15 @@ class BibTeX_Plugin
 			}
 		} else if($bibItems[2]=='allow') /* citation type */
 		{
-			$query = $wpdb->prepare("SELECT pubid FROM ".$this->database_interface->get_tablename('main'). " WHERE type=%s ORDER BY year DESC;", trim($bibItems[3]));
+			$query = $wpdb->prepare("SELECT pubid FROM ".$this->database_interface->get_tablename('main'). " WHERE type=%s ORDER BY yy DESC, mm DESC;", trim($bibItems[3]));
 			$pids= $wpdb->get_results($query); /* publication ID */
 			if(!empty($pids)){
 				/* potentially more than one ... */
 				$num = count($pids);
-				$fulllist = "<ul>";
+				$fulllist = "<ul class='publist'>";
 				for($i=0; $i < $num; $i++){
 					$pid = $pids[$i]->pubid;
-					$fulllist .= "<li>" . $this->get_full_publication_info($pid) . "</li>\n";
+					$fulllist .= "<li class='li" . ($i % 2). "'>" . $this->get_full_publication_info($pid) . "</li>\n";
 				}
 				$fulllist .= "</ul>";				
 				return $fulllist;
@@ -121,10 +121,10 @@ class BibTeX_Plugin
 			if(!empty($pids)){
 				/* potentially more than one ... */
 				$num = count($pids);
-				$fulllist = "<ul>";
+				$fulllist = "<ul class='publist'>";
 				for($i=0; $i < $num; $i++){
 					$pid = $pids[$i]->pubid;
-					$fulllist .= "<li>" . $this->get_full_publication_info($pid) . "</li>\n";
+					$fulllist .= "<li class='li" . ($i % 2). "'>" . $this->get_full_publication_info($pid) . "</li>\n";
 				}
 				$fulllist .= "</ul>";				
 				return $fulllist;
@@ -138,10 +138,10 @@ class BibTeX_Plugin
 			if(!empty($pids)){
 				/* potentially more than one ... */
 				$num = count($pids);
-				$fulllist = "<ul>";
+				$fulllist = "<ul class='publist'>";
 				for($i=0; $i < $num; $i++){
 					$pid = $pids[$i]->id;
-					$fulllist .= "<li>" . $this->get_full_publication_info($pid) . "</li>\n";
+					$fulllist .= "<li class='li" . ($i % 2). "'>" . $this->get_full_publication_info($pid) . "</li>\n";
 				}
 				$fulllist .= "</ul>";				
 				return $fulllist;
@@ -155,10 +155,10 @@ class BibTeX_Plugin
 			if(!empty($pids)){
 				/* potentially more than one ... */
 				$num = count($pids);
-				$fulllist = "<ul>";
+				$fulllist = "<ul class='publist'>";
 				for($i=0; $i < $num; $i++){
 					$pid = $pids[$i]->pubid;
-					$fulllist .= "<li>" . $this->get_full_publication_info($pid) . "</li>\n";
+					$fulllist .= "<li class='li" . ($i % 2). "'>" . $this->get_full_publication_info($pid) . "</li>\n";
 				}
 				$fulllist .= "</ul>";				
 				return $fulllist;
@@ -172,15 +172,15 @@ class BibTeX_Plugin
 				if(!empty($pids)){
 					/* potentially more than one ... */
 					$num = count($pids);
-					$fulllist = "<ul>";
+					$fulllist = "<ul class='publist'>";
 					for($i=0; $i < $num; $i++){
 						$pid = $pids[$i]->pubid;
-						$fulllist .= "<li>" . $this->get_full_publication_info($pid) . "</li>\n";
+						$fulllist .= "<li class='li" . ($i % 2). "'>" . $this->get_full_publication_info($pid) . "</li>\n";
 					}
 					$fulllist .= "</ul>";				
 					return $fulllist;
 				} else {
-					return "No publications with keyword '" . $bibItems[3] . "'<br/>";				
+					return "No publications in year " . $bibItems[3] . "<br/>";				
 				}		
 		}  else if($bibItems[2]=='author') /* select by author's lastname */
 			{
@@ -188,7 +188,7 @@ class BibTeX_Plugin
 				if(!empty($pids)){
 					/* potentially more than one ... */
 					$num = count($pids);
-					$fulllist = "<ul>";
+					$fulllist = "<ul class='publist'>";
 					for($i=0; $i < $num; $i++){
 						$pid = $pids[$i]->pubid;
 						$fulllist .= "<li>" . $this->get_full_publication_info($pid) . "</li>\n";
@@ -345,9 +345,10 @@ class BibTeX_Plugin
 		}		
 		/* bibtex code -- if available */
 		if($code != ''){ /* onclick="Effect.toggle(\''. $bibcite . "','appear'); return false\" */
-			if("" == $abstract)
-				$biblogo = "<br/>";
+//			if("" == $abstract)
+//				$biblogo = "<br/>";
 			$biblogo .= '<a class="toggle" href="#' . sanitize_title_with_dashes($bibcite) . '" >bibtex</a>';
+
 			$pub .= "\n" . $biblogo;
 			if("" == $doi)
 				$bibtexcode = "<br/>";
@@ -390,6 +391,8 @@ class BibTeX_Plugin
           $authstring = $authstring." ".str_replace('~', "&nbsp;", $authors[$i]['last']);
         }
     }
+    str_replace("  ", " ", $authstring);
+    $authstring = trim($authstring);
     return $authstring;
   }
 
@@ -460,7 +463,7 @@ class BibTeX_Plugin
 	 * @return the formatted HTM string
 	 */
 	function toURL($strURL) {
-		$string = " <a target=_blank href='" . $strURL . "' title='Go to document in another window'><img class='alignnone' src='" . $this->get_bt_pluginURL() . "/doi.png' height='14' alt='Go to document in another window' /></a>\n";
+		$string = ' <a target="_blank" title="opens in a new window" href="' . $strURL . '" class="followdoi">doi</a>';
 		return $string;
 	}
 
@@ -1124,7 +1127,7 @@ class BibTeX_Plugin
 				}
 	      $authors = $this->get_publication_authors($pubID);
         $shortauthnames = $this->generateAuthorShortNameString($authors);
-				$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('main')." SET authorsnames=%s WHERE pubid=%d", $authnames, $pubID);
+				$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('main')." SET authorsnames=%s WHERE pubid=%d", trim($authnames), $pubID);
 				$wpdb->query($query);
 				
 				$query = $wpdb->prepare("UPDATE ".$this->database_interface->get_tablename('main')." SET shortauthnames=%s WHERE pubid=%d", $shortauthnames, $pubID);
@@ -1577,9 +1580,9 @@ class BibTeX_Plugin
        echo '<script src="'.$this->get_bt_pluginURL().'/js/jquery-1.2.3.js"  type="text/javascript"></script>'."\n";
        echo '<script src="'.$this->get_bt_pluginURL().'/js/BibTeX.js"  type="text/javascript"></script>'."\n";
        echo '<link type="text/css" rel="stylesheet" href="' . $this->get_bt_pluginURL() . '/BibTeX.user.css" />' . "\n";
-       echo "<style type=\"text/css\">
- 			    div.bibtex {display: none;}
-				</style>";
+//       echo "<style type=\"text/css\">
+// 			    div.bibtex {display: none;}
+//				</style>";
     }
 
     	    

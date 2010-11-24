@@ -8,3 +8,22 @@ div.bibtex {
 	padding: 5px;
 	font-size: 0.85em;
 }
+
+a.followdoi:after{
+  content:"\25B9";
+}
+
+
+ul.publist {
+list-style: none;
+}
+
+.li1 {
+	padding: 1px;
+}
+
+.li0 {
+	background:#f9f9f9;
+	border:1px solid #f0f0f0;
+	padding: 1px;
+}

@@ -67,7 +67,7 @@
 					Lastname
 				</th>
 				<th width="10%" align="center">
-					Internal
+					University Staff
 				</th>
 				<th width="30%" align="center">
 					&nbsp;
@@ -101,7 +101,7 @@
 							<?php echo $row->last; ?>
 						</td>
 						<td  align="center" width="5%" scope="row" class="check-column" valign="middle">
-							<input type="checkbox" value="<?php echo $row->isInternal; ?>" <?php if($row->isInternal==1) echo "checked"; ?>/>
+							<input type="checkbox" disabled value="<?php echo $row->isInternal; ?>" <?php if($row->isInternal==1) echo "checked"; ?>/>
 						</td>
 						<td width="30%" align="left">
 							<?php echo $row->isInternal; ?>
