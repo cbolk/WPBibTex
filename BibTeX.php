@@ -73,7 +73,7 @@ class BibTeX_Plugin
 	function BibTeX_filter_content($text)
 	{
 		/* works with a single keyword */
-		return preg_replace_callback ("/\[bibtex\s+((allow|category|deny|cite|keyword|author|year)\s*=\s*([^\]]+))]/U",array (&$this, 'tag_pattern_management'), $text);
+		return preg_replace_callback ("/\[bibtex\s+((allow|category|deny|cite|keyword|author|year|latest)\s*=\s*([^\]]+))]/U",array (&$this, 'tag_pattern_management'), $text);
 	}
 	
 	/**
@@ -197,6 +197,22 @@ class BibTeX_Plugin
 					return $fulllist;
 				} else {
 					return "No publications by author '" . $bibItems[3] . "'<br/>";				
+				}		
+		} else if($bibItems[2]=='latest') /* select most recent X publications */
+			{
+				$pids= $this->getMostRecentPublications($bibItems[3]); /* number X of latest publications */
+				if(!empty($pids)){
+					/* potentially more than one ... */
+					$num = count($pids);
+					$fulllist = "<ul class='publist'>";
+					for($i=0; $i < $num; $i++){
+						$pid = $pids[$i]->pubid;
+						$fulllist .= "<li>" . $pids[$i]->year . "&nbsp;|&nbsp;" . $pids[$i]->month . "<br/>"  . $this->get_full_publication_info($pid) . "</li>\n";
+					}
+					$fulllist .= "</ul>";				
+					return $fulllist;
+				} else {
+					return "<br/>";				
 				}		
 		} else
 			/* returns un managed pattern */
@@ -1196,12 +1212,27 @@ class BibTeX_Plugin
 
 	function getPublicationsByAuthorID($authid)
 	{
-    	global $wpdb;
+    global $wpdb;
 		$strSQL = "SELECT pubid FROM ".$this->database_interface->get_tablename('pubauth')." WHERE authid=".$authid;
 		$query = $wpdb->prepare($strSQL);
 		$pubdata = $wpdb->get_results($query);
 		return $pubdata;
 	}
+
+	/**
+	 * Retrieves the last num publications 
+	 * @param object $num The number of publications to be retrieved
+	 * @return The IDs of the publications
+	 */
+	function getMostRecentPublications($num)
+	{
+    global $wpdb;
+		$strSQL = "SELECT pubid, yy as year, month FROM ".$this->database_interface->get_tablename('main')." ORDER BY yy desc, mm desc LIMIT ".$num;
+		$query = $wpdb->prepare($strSQL);
+		$pubdata = $wpdb->get_results($query);
+		return $pubdata;
+	}
+
 
 
 	/**
