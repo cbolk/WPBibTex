@@ -55,6 +55,11 @@ This is the list of publications for a given year
 This is the list of publications of author xxxxx
 [bibtex author=xxxxx]
 
+This is the list of the last 4 publications with respect to year and month date
+of publication
+[bibtex lates=4]
+
+
 == Supported BibTeX reference types (to be used in the pattern for retrieving publications) ==
 
 * Conference/Symposium/Workshop proceedings: inproceedings
