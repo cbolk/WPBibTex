@@ -2,14 +2,14 @@
 /**
  * @package BibTeX for Wordpress
  * @author Fabrizio Ferrandi, Cristiana Bolchini
- * @version 2.0
+ * @version 2.1
  */
 /*
 Plugin Name: BibTeX extension to Wordpress
 Plugin URI: http://github.com/cbolk/WPBibTex
 Description: Bibtex plugin allows to add bibliography entries in a wordpress blog, supporting BibTeX style.
 Author: Fabrizio Ferrandi, Cristiana Bolchini
-Version: 2.0
+Version: 2.1
 Author URI: http://www.dei.polimi.it/people/ferrandi
 */
 
@@ -67,14 +67,175 @@ class BibTeX_Plugin
 	}
 
 	/**
-	 *  Parsing template [bibtex key=CITATION|type=PUBTYPE]
+	 *  Parsing template [bibtex allow=PUBTYPE year=PUBYEAR]
 	 *
 	 **/
 	function BibTeX_filter_content($text)
 	{
-		/* works with a single keyword */
-		return preg_replace_callback ("/\[bibtex\s+((allow|category|deny|cite|keyword|author|year|latest)\s*=\s*([^\]]+))]/U",array (&$this, 'tag_pattern_management'), $text);
+		$regex = '/\[bibtex\s+((allow|category|deny|cite|keyword|author|year|latest)\s*=\s*([^\]]+))]/U';
+		$string = preg_replace('!\s+!', ' ', $text);
+		return preg_replace_callback ($regex,array (&$this, 'tag_pattern_management'), $string); 
+/*		return preg_replace_callback ($regex,array (&$this, 'tag_pattern_management_multiple'), $string); */
 	}
+	
+	/**
+	 * Manages the possible tags into patterns [bibtex patternKey=value]
+	 * $bibItems is Array with [0] bibtex [1] patternKey=value [2] patternKey [3] value 
+	 * @param object $bibItems
+	 * @return list of publications matching the pattern
+	 */
+	function tag_pattern_management_multiple($bibItems)
+	{
+		/* the db */
+		global $wpdb;
+		$string = preg_replace('!\s!', '=', $bibItems[1]);
+		$pairs = explode("=",$string);
+		/* $pairs[0]=key $pairs[1]=value */
+		if($pairs[0]=='cite') /* single bib citation */
+		{
+			/* retrieves the information on the publication */
+			$query = $wpdb->prepare("SELECT pubid FROM ".$this->database_interface->get_tablename('main')." WHERE cite=%s;", trim($pairs[1]));
+			$pid= $wpdb->get_var($query); /* publication ID */
+			if(!empty($pid)){
+				return $this->get_full_publication_info($pid);
+			} else {
+				return "bibtex citation " . $pairs[1] . " not found.<br/>";
+			}
+		} else if($pairs[0]=='allow') /* citation type */
+		{
+			if($pairs[2]=='year') 
+				$query = $wpdb->prepare("SELECT pubid FROM ".$this->database_interface->get_tablename('main'). " WHERE type=%s AND yy=%s;", trim($pairs[1]), trim($pairs[3]));
+			else
+				$query = $wpdb->prepare("SELECT pubid FROM ".$this->database_interface->get_tablename('main'). " WHERE type=%s ORDER BY yy DESC, mm DESC;", trim($pairs[1]));
+			
+			$pids= $wpdb->get_results($query); /* publication ID */
+			if(!empty($pids)){
+				/* potentially more than one ... */
+				$num = count($pids);
+				$fulllist = "<ul class='publist'>";
+				for($i=0; $i < $num; $i++){
+					$pid = $pids[$i]->pubid;
+					$fulllist .= "<li class='li" . ($i % 2). "'>" . $this->get_full_publication_info($pid) . "</li>\n";
+				}
+				$fulllist .= "</ul>";
+				return $fulllist;
+			} else {
+				if($pairs[2]=='year')
+					return "No publications with type " . $pairs[1] . " in year " . $pairs[3] . "<br/>";				
+				return "No publications with type " . $pairs[1] . " <br/>";				
+			}
+				
+		} else if($pairs[0]=='deny') /* exclusion type */
+		{
+			$query = $wpdb->prepare("SELECT pubid FROM ".$this->database_interface->get_tablename('main')." WHERE NOT type=%s ORDER BY year DESC;", $pairs[1]);
+			$pids= $wpdb->get_results($query); /* publication ID */
+			if(!empty($pids)){
+				/* potentially more than one ... */
+				$num = count($pids);
+				$fulllist = "<ul class='publist'>";
+				for($i=0; $i < $num; $i++){
+					$pid = $pids[$i]->pubid;
+					$fulllist .= "<li class='li" . ($i % 2). "'>" . $this->get_full_publication_info($pid) . "</li>\n";
+				}
+				$fulllist .= "</ul>";				
+				return $fulllist;
+			} else {
+				return "";				
+			}			
+		} else if($pairs[0]=='category')
+		{
+			if($pairs[2]=='year') 
+				$query = $wpdb->prepare("SELECT pub.id FROM ".$this->database_interface->get_tablename('categories')." AS pub INNER JOIN ".$this->database_interface->get_tablename('main_categories')." AS cat ON pub.categories=cat.id WHERE UPPER(cat.name)=UPPER(%s) AND yy=%s;", trim($pairs[1]), trim($pairs[3]));
+			else
+				$query = $wpdb->prepare("SELECT pub.id FROM ".$this->database_interface->get_tablename('categories')." AS pub INNER JOIN ".$this->database_interface->get_tablename('main_categories')." AS cat ON pub.categories=cat.id WHERE UPPER(cat.name)=UPPER(%s);", trim($pairs[1]));
+
+			$pids= $wpdb->get_results($query); /* publication ID */
+			if(!empty($pids)){
+				/* potentially more than one ... */
+				$num = count($pids);
+				$fulllist = "<ul class='publist'>";
+				for($i=0; $i < $num; $i++){
+					$pid = $pids[$i]->id;
+					$fulllist .= "<li class='li" . ($i % 2). "'>" . $this->get_full_publication_info($pid) . "</li>\n";
+				}
+				$fulllist .= "</ul>";				
+				return $fulllist;
+			} else {
+				if($pairs[2]=='year')
+					return "No publications with category = " . $pairs[1] . " in year " . $pairs[3] . " <br/>";
+				return "No publications with category = " . $pairs[1] . " <br/>";				
+			}
+		} else if($bibItems[2]=='keyword')
+		{
+			$query = $wpdb->prepare("SELECT pubid FROM ".$this->database_interface->get_tablename('main')." WHERE INSTR(UPPER(keywords), UPPER(%s)) > 0;", trim($pairs[1]));
+			
+			$pids= $wpdb->get_results($query); /* publication ID */
+			if(!empty($pids)){
+				/* potentially more than one ... */
+				$num = count($pids);
+				$fulllist = "<ul class='publist'>";
+				for($i=0; $i < $num; $i++){
+					$pid = $pids[$i]->pubid;
+					$fulllist .= "<li class='li" . ($i % 2). "'>" . $this->get_full_publication_info($pid) . "</li>\n";
+				}
+				$fulllist .= "</ul>";				
+				return $fulllist;
+			} else {
+				return "No publications with keyword '" . $pairs[1] . "'<br/>";				
+			}		
+		} else if($pairs[0]=='year') /* select by year */
+			{
+				$query = $wpdb->prepare("SELECT pubid FROM ".$this->database_interface->get_tablename('main')." WHERE year=%s;", $pairs[1]);
+				$pids= $wpdb->get_results($query); /* publication ID */
+				if(!empty($pids)){
+					/* potentially more than one ... */
+					$num = count($pids);
+					$fulllist = "<ul class='publist'>";
+					for($i=0; $i < $num; $i++){
+						$pid = $pids[$i]->pubid;
+						$fulllist .= "<li class='li" . ($i % 2). "'>" . $this->get_full_publication_info($pid) . "</li>\n";
+					}
+					$fulllist .= "</ul>";				
+					return $fulllist;
+				} else {
+					return "No publications in year " . $pairs[1] . "<br/>";				
+				}		
+		}  else if($pairs[0]=='author') /* select by author's lastname */
+			{
+				$pids= $this->getPublicationsByAuthorName($pairs[1]); /* author's lastname */
+				if(!empty($pids)){
+					/* potentially more than one ... */
+					$num = count($pids);
+					$fulllist = "<ul class='publist'>";
+					for($i=0; $i < $num; $i++){
+						$pid = $pids[$i]->pubid;
+						$fulllist .= "<li>" . $this->get_full_publication_info($pid) . "</li>\n";
+					}
+					$fulllist .= "</ul>";				
+					return $fulllist;
+				} else {
+					return "No publications by author '" .$pairs[1] . "'<br/>";				
+				}		
+		} else if($pairs[0]=='latest') /* select most recent X publications */
+			{
+				$pids= $this->getMostRecentPublications($pairs[1]); /* number X of latest publications */
+				if(!empty($pids)){
+					/* potentially more than one ... */
+					$num = count($pids);
+					$fulllist = "<ul class='publist'>";
+					for($i=0; $i < $num; $i++){
+						$pid = $pids[$i]->pubid;
+						$fulllist .= "<li>" . $pids[$i]->year . "&nbsp;|&nbsp;" . $pids[$i]->month . "<br/>"  . $this->get_full_publication_info($pid) . "</li>\n";
+					}
+					$fulllist .= "</ul>";				
+					return $fulllist;
+				} else {
+					return "<br/>";				
+				}		
+		} else
+			/* returns un managed pattern */
+			return $bibItems[0];
+	}	
 	
 	/**
 	 * Manages the possible tags into patterns [bibtex patternKey=value]
@@ -98,7 +259,11 @@ class BibTeX_Plugin
 			}
 		} else if($bibItems[2]=='allow') /* citation type */
 		{
-			$query = $wpdb->prepare("SELECT pubid FROM ".$this->database_interface->get_tablename('main'). " WHERE type=%s ORDER BY yy DESC, mm DESC;", trim($bibItems[3]));
+			if($bibitems[4]=='year') 
+				$query = $wpdb->prepare("SELECT pubid FROM ".$this->database_interface->get_tablename('main'). " WHERE type=%s AND yy=%s;", trim($bibItems[3]), trim($bibItems[5]));
+			else
+				$query = $wpdb->prepare("SELECT pubid FROM ".$this->database_interface->get_tablename('main'). " WHERE type=%s ORDER BY yy DESC, mm DESC;", trim($bibItems[3]));
+			
 			$pids= $wpdb->get_results($query); /* publication ID */
 			if(!empty($pids)){
 				/* potentially more than one ... */
@@ -108,9 +273,11 @@ class BibTeX_Plugin
 					$pid = $pids[$i]->pubid;
 					$fulllist .= "<li class='li" . ($i % 2). "'>" . $this->get_full_publication_info($pid) . "</li>\n";
 				}
-				$fulllist .= "</ul>";				
+				$fulllist .= "</ul>";
 				return $fulllist;
 			} else {
+				if($bibitems[4]=='year')
+					return "No publications with type " . $bibItems[3] . " in year " . $bibItems[5] . "<br/>";				
 				return "No publications with type " . $bibItems[3] . " <br/>";				
 			}
 				

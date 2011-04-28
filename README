@@ -60,6 +60,11 @@ of publication
 [bibtex lates=4]
 
 
+Preliminarly also a multiple tag is supported, when filtering also by year, for the
+following options: allow and category
+[bibtex allow=article year=2011]
+[bibtex category=deliverable year=2011]
+
 == Supported BibTeX reference types (to be used in the pattern for retrieving publications) ==
 
 * Conference/Symposium/Workshop proceedings: inproceedings
