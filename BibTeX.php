@@ -72,14 +72,166 @@ class BibTeX_Plugin
 	 **/
 	function BibTeX_filter_content($text)
 	{
-		$regex = '/\[bibtex\s+((allow|category|deny|cite|keyword|author|year|latest)\s*=\s*([^\]]+))]/U';
+		$regex = "/\[bibtex\s+(.*)]/U";
 		$string = preg_replace('!\s+!', ' ', $text);
-		return preg_replace_callback ($regex,array (&$this, 'tag_pattern_management'), $string); 
-/*		return preg_replace_callback ($regex,array (&$this, 'tag_pattern_management_multiple'), $string); */
+		//return $this->tag_pattern_management_nocallback($output);
+		return preg_replace_callback ($regex,array (&$this, 'tag_pattern_management_mult'), $string);
+
 	}
 	
+	function tag_pattern_management_mult($bibItems)
+	{
+		global $wpdb;
+
+		$regex = "/\[bibtex\s+(.*)]/U";	
+		$pattern = '/(allow|category|deny|cite|keyword|author|year|latest)=([a-zA-Z0-9]+)/i'; //[^>]+/i';
+		$output = preg_replace($regex,"$1",$bibItems);
+		$outString = $bibItems[0] . ': ';
+		preg_match_all($pattern, $output[0], $result);
+	/*
+	 * Array ( [0] => Array ( [0] => allow=article [1] => year=2010 ) 
+			   [1] => Array ( [0] => allow [1] => year ) 
+			   [2] => Array ( [0] => article [1] => 2010 ) ) 
+	 * 
+	 * */	
+
+		$isYear = 0;
+		$isAllow = false;
+		$isCite = false;
+		$isAuthor = '';
+		$isLatest = 0;
+		$isKeyword = false;
+		$isDeny = false;
+		$isCategory = false;
+
+
+		$condString = ' WHERE ';
+		$nCond = count($result[1]);  /* or count($result[2]); */
+		$iCond = 0;
+		if ($result[1][$iCond] == 'year'){					/* year */
+			$isYear = $result[2][$iCond];
+			$condString .=  $result[0][$iCond];
+		} else if ($result[1][$iCond] == 'allow') {			/* bibtex citation type */
+			$isAllow = true;
+			$condString .= ' type=\'' . $result[2][$iCond] . '\'';
+		} else if ($result[1][$iCond] == 'deny') {			/* avoid bibtex citation type */
+			$isDeny = true;
+			$condString .= ' NOT type=\'' . $result[2][$iCond] . '\'';
+		} else if ($result[1][$iCond] == 'keyword') {			/* keywords */
+			$isKeyword = true;
+			$condString .= ' INSTR(UPPER(keywords), UPPER(\'' . $result[2][$iCond] . '\')) > 0';
+		} else if ($result[1][$iCond] == 'category') {			/* category */
+			$isCategory = true;
+			$condString .= ' UPPER(cat.name)=UPPER(\'' . $result[2][$iCond] . '\') ';
+		} else if ($result[1][$iCond] == 'cite') {			/* bibtex single citation */
+			$isCite = true;
+			$condString .= ' cite=\'' . $result[2][$iCond] . '\'';
+		} else if ($result[1][$iCond] == 'author') {			/* bibtex author */
+			$isAuthor = $result[2][$iCond];
+		} else if ($result[1][$iCond] == 'latest') {			/* latest publications, no filtering */
+			$isLatest = $result[2][$iCond];
+		} else {   /* UNSUPPORTED PATTERN */
+			return 'UNSUPPORTED PATTERN ' . $output[0] . ' SEE the README for allowed patterns key=value';
+		}
+		$iCond = 1;
+		while($iCond < $nCond){
+			if ($result[1][$iCond] =='year'){					/* year */
+				$isYear = $result[2][$iCond];
+				$condString .= ' AND ' . $result[0][$iCond];
+			} else if ($result[1][$iCond] =='allow') {			/* bibtex citation type */
+				$isAllow = true;
+				$condString .= ' AND type=\'' . $result[2][$iCond] . '\'';
+			} else if ($result[1][$iCond] == 'deny') {			/* bibtex citation type */
+				$isDeny = true;
+				$condString .= ' NOT  type=\'' . $result[2][$iCond] . '\'';
+			} else if ($result[1][$iCond] == 'keyword') {			/* keywords */
+				$isKeyword = true;
+				$condString .= ' INSTR(UPPER(keywords), UPPER(\'' . $result[2][$iCond] . '\')) > 0 ';
+			} else if ($result[1][$iCond] == 'category') {			/* category */
+				$isCategory = true;
+				$condString .= ' UPPER(cat.name)=UPPER(\'' . $result[2][$iCond] . '\') ';
+			} else if ($result[1][$iCond] == 'cite') {			/* bibtex single citation */ /*  SHOULD NOT HAPPEN */
+				$isCite = true;
+				$condString .= ' AND cite=\'' . $result[2][$iCond]  .'\'';
+			} else if ($result[1][$iCond] == 'author') {			/* bibtex author */
+				$isAuthor = $result[2][$iCond];
+			} else if ($result[1][$iCond] == 'latest') {			/* latest publications, no filtering */
+				$isLatest = $result[2][$iCond];
+			} 		
+			$iCond += 1; 
+		}
+		if($isYear == 0)
+			$condString .= ' ORDER BY yy DESC, mm DESC';
+		$strmsg = '';
+		/* First part of the query, when necessary */
+		if($isAuthor != ''){ /* publications by a specific author */
+			$pids= $this->getPublicationsByAuthorName($isAuthor); /* author's lastname */
+			if(!empty($pids)){
+				/* potentially more than one ... */
+				$num = count($pids);
+				$fulllist = "<ul class='publist'>";
+				for($i=0; $i < $num; $i++){
+					$pid = $pids[$i]->pubid;
+					$pubstring = $this->get_full_publication_info($pid);
+					if(($isYear > 0 && strrpos($pubstring, ' yy = {' . $isYear . '}') > 0) || $isYear == 0)
+							$fulllist .= "<li class='li" . ($i % 2). "'>" . $pubstring . "</li>\n";
+				}
+				$fulllist .= "</ul>";
+				if($fulllist == "<ul class='publist'></ul>")	/* no publications in that year */
+					$strmsg = "No publications by author '" .$isAuthor . '\' in year ' . $isYear;
+				else
+					$strmsg = $fulllist;
+			} else {
+				$strmsg = "No publications by author '" .$isAuthor;
+			}		
+		} else if ($isLatest > 0) {
+				$pids= $this->getMostRecentPublications($isLatest); /* number X of latest publications */
+				if(!empty($pids)){
+					/* potentially more than one ... */
+					$num = count($pids);
+					$fulllist = "<ul class='publist'>";
+					for($i=0; $i < $num; $i++){
+						$pid = $pids[$i]->pubid;
+						$fulllist .= "<li>" . $pids[$i]->year . "&nbsp;|&nbsp;" . $pids[$i]->month . "<br/>"  . $this->get_full_publication_info($pid) . "</li>\n";
+					}
+					$fulllist .= "</ul>";				
+					$strmsg = $fulllist;
+				} else {
+					$strmsg = "<br/>";				
+				}		
+			
+		} else {
+			$strSQL = '';
+			if($isAllow || $isDeny || $isCite || $isKeyword || $isYear) {
+				$strSQL = 'SELECT pubid FROM '. $this->database_interface->get_tablename('main');
+			} else if($isCategory) {
+				$strSQL = "SELECT pub.id FROM ".$this->database_interface->get_tablename('categories')." AS pub INNER JOIN ".$this->database_interface->get_tablename('main_categories')." AS cat ON pub.categories=cat.id";
+			} 
+			/* query execution */
+			$strSQL .= $condString;
+			$query = $wpdb->prepare($strSQL);
+			$pids= $wpdb->get_results($query);   /* one or more */
+			if(!empty($pids)){
+				/* potentially more than one ... */
+				$num = count($pids);
+				$fulllist = "<ul class='publist'>";
+				for($i=0; $i < $num; $i++){
+					$pid = $pids[$i]->pubid;
+					$pubstring = $this->get_full_publication_info($pid);
+					$fulllist .= "<li class='li" . ($i % 2). "'>" . $pubstring . "</li>\n";
+				}
+				$fulllist .= "</ul>";
+				$strmsg = $fulllist;
+			} else 
+				$strmsg = 'No publication matching the selected criteria ';
+		}
+		return $strmsg;
+	}
+	
+	
+	
 	/**
-	 * Manages the possible tags into patterns [bibtex patternKey=value]
+	 * Manages the possible tags into patterns [bibtex patternKey=value patternKey2=value2]
 	 * $bibItems is Array with [0] bibtex [1] patternKey=value [2] patternKey [3] value 
 	 * @param object $bibItems
 	 * @return list of publications matching the pattern
@@ -88,6 +240,8 @@ class BibTeX_Plugin
 	{
 		/* the db */
 		global $wpdb;
+
+
 		$string = preg_replace('!\s!', '=', $bibItems[1]);
 		$pairs = explode("=",$string);
 		/* $pairs[0]=key $pairs[1]=value */
@@ -1379,8 +1533,8 @@ class BibTeX_Plugin
 
 	function getPublicationsByAuthorID($authid)
 	{
-    global $wpdb;
-		$strSQL = "SELECT pubid FROM ".$this->database_interface->get_tablename('pubauth')." WHERE authid=".$authid;
+    	global $wpdb;
+		$strSQL = "SELECT pubid FROM ".$this->database_interface->get_tablename('pubauth')." WHERE authid=".$authid . ';';
 		$query = $wpdb->prepare($strSQL);
 		$pubdata = $wpdb->get_results($query);
 		return $pubdata;
