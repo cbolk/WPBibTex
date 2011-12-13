@@ -84,7 +84,7 @@ class BibTeX_Plugin
 		global $wpdb;
 
 		$regex = "/\[bibtex\s+(.*)]/U";	
-		$pattern = '/(allow|category|deny|cite|keyword|author|year|latest)=([a-zA-Z0-9]+)/i'; //[^>]+/i';
+		$pattern = '/(allow|category|deny|cite|keyword|author|year|latest)=([a-zA-Z0-9]+(\\.[_A-Za-z0-9-]+)*)/i'; //[^>]+/i';
 		$output = preg_replace($regex,"$1",$bibItems);
 		$outString = $bibItems[0] . ': ';
 		preg_match_all($pattern, $output[0], $result);
@@ -218,7 +218,11 @@ class BibTeX_Plugin
 				for($i=0; $i < $num; $i++){
 					$pid = $pids[$i]->pubid;
 					$pubstring = $this->get_full_publication_info($pid);
-					$fulllist .= "<li class='li" . ($i % 2). "'>" . $pubstring . "</li>\n";
+					$fulllist .= "<li";
+					if(!$isCite)
+						$fulllist .= "class='li" . ($i % 2). "'";
+					
+					$fulllist .= ">" . $pubstring . "</li>\n";					
 				}
 				$fulllist .= "</ul>";
 				$strmsg = $fulllist;
