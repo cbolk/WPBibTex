@@ -220,7 +220,7 @@ class BibTeX_Plugin
 					$pubstring = $this->get_full_publication_info($pid);
 					$fulllist .= "<li";
 					if(!$isCite)
-						$fulllist .= "class='li" . ($i % 2). "'";
+						$fulllist .= " class='li" . ($i % 2). "'";
 					
 					$fulllist .= ">" . $pubstring . "</li>\n";					
 				}
