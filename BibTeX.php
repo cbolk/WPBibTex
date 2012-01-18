@@ -1934,7 +1934,7 @@ class BibTeX_Plugin
 	//CB: to include scriptaculous on pages where the bib appears
     function bibtex_plugin_user_head() {
        echo '<script src="'.$this->get_bt_pluginURL().'/js/jquery-1.2.3.js"  type="text/javascript"></script>'."\n";
-       echo '<script src="'.$this->get_bt_pluginURL().'/js/BibTeX.js"  type="text/javascript"></script>'."\n";
+       echo '<script src="'.$this->get_bt_pluginURL().'/js/bibtex.js"  type="text/javascript"></script>'."\n";
        echo '<link type="text/css" rel="stylesheet" href="' . $this->get_bt_pluginURL() . '/BibTeX.user.css" />' . "\n";
 //       echo "<style type=\"text/css\">
 // 			    div.bibtex {display: none;}
