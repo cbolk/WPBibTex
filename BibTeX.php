@@ -72,6 +72,10 @@ class BibTeX_Plugin
 	 **/
 	function BibTeX_filter_content($text)
 	{
+		//CB 20120418 - do not eliminate CR if bibtex is not there ...
+		if(strpos($text, 'bibtex') === false)
+			return $text;
+
 		$regex = "/\[bibtex\s+(.*)]/U";
 		$string = preg_replace('!\s+!', ' ', $text);
 		//return $this->tag_pattern_management_nocallback($output);
