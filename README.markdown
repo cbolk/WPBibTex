@@ -1,13 +1,17 @@
-== Description ==
+Description
+===========
 BibTeX plugin allows to add bibliography entries in a wordpress blog, supporting BibTeX style.
 
 
-== Revision ==
+Revision
+===========
+
 Addition of multiple key=value pairs in the tag, mainly to support filtering for the YEAR
 together with a main selection criteria.
 Criteria are used in AND.
 
-== Features ==
+Features
+===========
 
 * input data directly from the bibtex text file
 * easy inclusion in wordpress pages/posts by means of a dedicated tag
@@ -16,10 +20,13 @@ Criteria are used in AND.
 * expose URL of each document (if network-reachable)
 * manage authors as single entity for further reference in the wordpress blog/pages
 
-== Compatibility ==
-The bibtex plugin has been developed and tested under Wordpress version 2.9.1. 
+Compatibility
+===========
+The bibtex plugin has been developed and tested under Wordpress version 3.3.1. 
 
-== Author's naming convention ==
+Author's naming convention
+===========
+
 * First
 * Middle
 * Last
@@ -29,7 +36,8 @@ If the Firstname has two separate words and both are firstname and not first and
 the ~ char to keep them together as one (e.g. Li~Cheng Wong).
 
 
-== A brief Markdown Example ==
+A brief Markdown Example
+===========
 
 When writing a page/post, you can use the tag [bibtex] as follows:
 
@@ -65,7 +73,9 @@ This is the list of the last 4 publications with respect to year and month date
 of publication
 [bibtex lates=4]
 
-== Supported BibTeX reference types (to be used in the pattern for retrieving publications) ==
+Supported BibTeX reference types (to be used in the pattern for retrieving publications)
+===========
+
 
 * Conference/Symposium/Workshop proceedings: inproceedings
 * Journal article: article
@@ -80,6 +90,7 @@ of publication
 * Technical report, Deliverable: techreport
 * Miscellanea: misc
 
-Acknowledge
+Acknowledges
+===========
 
 This plugin adapts the well known Joomla BibTex plugin developed by Mark Austin (mark.austin@everythingthatiknowabout.com - www.everythingthatiknowabout.com) to Wordpress environment
